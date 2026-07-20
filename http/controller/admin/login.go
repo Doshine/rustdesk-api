@@ -99,6 +99,133 @@ func (ct *Login) Login(c *gin.Context) {
 	loginLimiter.RemoveAttempts(clientIp)
 	responseLoginSuccess(c, u, ut.Token)
 }
+// SmsCode 发送短信验证码
+// @Tags 登录
+// @Summary 发送短信验证码
+// @Description 发送短信验证码
+// @Accept  json
+// @Produce  json
+// @Param body body admin.SmsCodeRequest true "手机号"
+// @Success 200 {object} response.Response
+// @Failure 500 {object} response.Response
+// @Router /admin/sms-code [post]
+func (ct *Login) SmsCode(c *gin.Context) {
+	// 检查登录限制
+	loginLimiter := global.LoginLimiter
+	clientIp := c.ClientIP()
+	banned, needCaptcha := loginLimiter.CheckSecurityStatus(clientIp)
+	if banned {
+		response.Fail(c, 101, response.TranslateMsg(c, "LoginBanned"))
+		return
+	}
+
+	f := &admin.SmsCodeRequest{}
+	err := c.ShouldBindJSON(f)
+	if err != nil {
+		global.Logger.Warn(fmt.Sprintf("SmsCode Fail: %s %s %s", "ParamsError", c.RemoteIP(), clientIp))
+		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError")+err.Error())
+		return
+	}
+
+	errList := global.Validator.ValidStruct(c, f)
+	if len(errList) > 0 {
+		global.Logger.Warn(fmt.Sprintf("SmsCode Fail: %s %s %s", "ParamsError", c.RemoteIP(), clientIp))
+		response.Fail(c, 101, errList[0])
+		return
+	}
+
+	// 检查是否需要验证码
+	if needCaptcha {
+		if f.CaptchaId == "" || f.Captcha == "" || !loginLimiter.VerifyCaptcha(f.CaptchaId, f.Captcha) {
+			response.Fail(c, 101, response.TranslateMsg(c, "CaptchaError"))
+			return
+		}
+	}
+
+	err = service.AllService.SmsService.SendLoginCode(f.Phone, clientIp)
+	if err != nil {
+		global.Logger.Warn(fmt.Sprintf("SmsCode Fail: %s %s %s", err.Error(), c.RemoteIP(), clientIp))
+		response.Fail(c, 101, response.TranslateMsg(c, err.Error()))
+		return
+	}
+	response.Success(c, nil)
+}
+
+// LoginSms 短信验证码登录
+// @Tags 登录
+// @Summary 短信验证码登录
+// @Description 短信验证码登录
+// @Accept  json
+// @Produce  json
+// @Param body body admin.LoginSmsRequest true "登录信息"
+// @Success 200 {object} response.Response{data=adResp.LoginPayload}
+// @Failure 500 {object} response.Response
+// @Router /admin/login-sms [post]
+func (ct *Login) LoginSms(c *gin.Context) {
+	// 检查登录限制
+	loginLimiter := global.LoginLimiter
+	clientIp := c.ClientIP()
+	banned, _ := loginLimiter.CheckSecurityStatus(clientIp)
+	if banned {
+		response.Fail(c, 101, response.TranslateMsg(c, "LoginBanned"))
+		return
+	}
+
+	f := &admin.LoginSmsRequest{}
+	err := c.ShouldBindJSON(f)
+	if err != nil {
+		global.Logger.Warn(fmt.Sprintf("LoginSms Fail: %s %s %s", "ParamsError", c.RemoteIP(), clientIp))
+		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError")+err.Error())
+		return
+	}
+
+	errList := global.Validator.ValidStruct(c, f)
+	if len(errList) > 0 {
+		global.Logger.Warn(fmt.Sprintf("LoginSms Fail: %s %s %s", "ParamsError", c.RemoteIP(), clientIp))
+		response.Fail(c, 101, errList[0])
+		return
+	}
+
+	if !service.AllService.SmsService.VerifyLoginCode(f.Phone, f.Code) {
+		loginLimiter.RecordFailedAttempt(clientIp)
+		global.Logger.Warn(fmt.Sprintf("LoginSms Fail: %s %s %s", "SmsCodeError", c.RemoteIP(), clientIp))
+		response.Fail(c, 101, response.TranslateMsg(c, "SmsCodeError"))
+		return
+	}
+
+	u := service.AllService.UserService.InfoByPhone(f.Phone)
+	if u.Id == 0 {
+		// 手机号未注册, 按注册开关自动注册
+		if !global.Config.App.Register {
+			response.Fail(c, 101, response.TranslateMsg(c, "RegisterClosed"))
+			return
+		}
+		u = service.AllService.UserService.RegisterByPhone(f.Phone)
+		if u == nil || u.Id == 0 {
+			response.Fail(c, 101, response.TranslateMsg(c, "OperationFailed"))
+			return
+		}
+	}
+
+	if !service.AllService.UserService.CheckUserEnable(u) {
+		response.Fail(c, 101, response.TranslateMsg(c, "UserDisabled"))
+		return
+	}
+
+	ut := service.AllService.UserService.Login(u, &model.LoginLog{
+		UserId:   u.Id,
+		Client:   model.LoginLogClientWebAdmin,
+		Uuid:     "", //must be empty
+		Ip:       clientIp,
+		Type:     model.LoginLogTypeSms,
+		Platform: f.Platform,
+	})
+
+	// 登录成功，清除登录限制
+	loginLimiter.RemoveAttempts(clientIp)
+	responseLoginSuccess(c, u, ut.Token)
+}
+
 func (ct *Login) Captcha(c *gin.Context) {
 	loginLimiter := global.LoginLimiter
 	clientIp := c.ClientIP()

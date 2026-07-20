@@ -15,6 +15,7 @@ const (
 	OauthTypeOidc    string = "oidc"
 	OauthTypeWebauth string = "webauth"
 	OauthTypeLinuxdo string = "linuxdo"
+	OauthTypeWechat  string = "wechat"
 	PKCEMethodS256   string = "S256"
 	PKCEMethodPlain  string = "plain"
 )
@@ -22,7 +23,7 @@ const (
 // Validate the oauth type
 func ValidateOauthType(oauthType string) error {
 	switch oauthType {
-	case OauthTypeGithub, OauthTypeGoogle, OauthTypeOidc, OauthTypeWebauth, OauthTypeLinuxdo:
+	case OauthTypeGithub, OauthTypeGoogle, OauthTypeOidc, OauthTypeWebauth, OauthTypeLinuxdo, OauthTypeWechat:
 		return nil
 	default:
 		return errors.New("invalid Oauth type")
@@ -33,6 +34,9 @@ const (
 	UserEndpointGithub  string = "https://api.github.com/user"
 	UserEndpointLinuxdo string = "https://connect.linux.do/api/user"
 	IssuerGoogle        string = "https://accounts.google.com"
+	AuthEndpointWechat  string = "https://open.weixin.qq.com/connect/qrconnect"
+	TokenEndpointWechat string = "https://api.weixin.qq.com/sns/oauth2/access_token"
+	UserEndpointWechat  string = "https://api.weixin.qq.com/sns/userinfo"
 )
 
 type Oauth struct {
@@ -64,6 +68,8 @@ func (oa *Oauth) FormatOauthInfo() error {
 		oa.Op = OauthTypeGoogle
 	case OauthTypeLinuxdo:
 		oa.Op = OauthTypeLinuxdo
+	case OauthTypeWechat:
+		oa.Op = OauthTypeWechat
 	}
 	// check if the op is empty, set the default value
 	op := strings.TrimSpace(oa.Op)
@@ -93,6 +99,9 @@ type OauthUser struct {
 	Email         string `json:"email"`
 	VerifiedEmail bool   `json:"verified_email,omitempty"`
 	Picture       string `json:"picture,omitempty"`
+	// UnionId 仅用于第三方平台(如微信)跨应用统一标识, 不入库不序列化,
+	// 由 UserThird.UnionId 字段负责存储, 避免与 UserThird 嵌入字段冲突
+	UnionId string `json:"-" gorm:"-"`
 }
 
 func (ou *OauthUser) ToUser(user *User, overideUsername bool) {
@@ -172,6 +181,16 @@ func (lu *LinuxdoUser) ToOauthUser() *OauthUser {
 		VerifiedEmail: true, // linux.do 用户邮箱默认已验证
 		Picture:       lu.Avatar,
 	}
+}
+
+// WechatUser 微信 sns/userinfo 返回结构, 错误时含 ErrCode/ErrMsg
+type WechatUser struct {
+	OpenId     string `json:"openid"`
+	UnionId    string `json:"unionid"`
+	Nickname   string `json:"nickname"`
+	HeadImgUrl string `json:"headimgurl"`
+	ErrCode    int    `json:"errcode"`
+	ErrMsg     string `json:"errmsg"`
 }
 
 type OauthList struct {

@@ -37,6 +37,13 @@ func (us *UserService) InfoByEmail(email string) *model.User {
 	return u
 }
 
+// InfoByPhone 根据手机号取用户信息
+func (us *UserService) InfoByPhone(phone string) *model.User {
+	u := &model.User{}
+	DB.Where("phone = ?", phone).First(u)
+	return u
+}
+
 // InfoByOpenid 根据openid取用户信息
 func (us *UserService) InfoByOpenid(openid string) *model.User {
 	u := &model.User{}
@@ -433,6 +440,32 @@ func (us *UserService) Register(username string, email string, password string, 
 		Password: password,
 		GroupId:  1,
 		Status:   status,
+	}
+	err := us.Create(u)
+	if err != nil {
+		return nil
+	}
+	return u
+}
+
+// RegisterByPhone 手机号自动注册, Username=Phone, Nickname=手机用户+掩码
+func (us *UserService) RegisterByPhone(phone string) *model.User {
+	Lock.Lock("registerByPhone")
+	defer Lock.UnLock("registerByPhone")
+	if u := us.InfoByPhone(phone); u.Id != 0 {
+		return u
+	}
+	regStatus := model.StatusCode(Config.App.RegisterStatus)
+	// 注册状态可能未配置，默认启用
+	if regStatus != model.COMMON_STATUS_DISABLED && regStatus != model.COMMON_STATUS_ENABLE {
+		regStatus = model.COMMON_STATUS_ENABLE
+	}
+	u := &model.User{
+		Username: phone,
+		Phone:    phone,
+		Nickname: "手机用户" + MaskCnPhone(phone),
+		GroupId:  1,
+		Status:   regStatus,
 	}
 	err := us.Create(u)
 	if err != nil {

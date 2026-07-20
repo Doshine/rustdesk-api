@@ -38,6 +38,21 @@ type LoginForm struct {
 	Password   string            `json:"password,omitempty" validate:"gte=4,lte=32" label:"密码"`
 }
 
+type SmsCodeForm struct {
+	DeviceInfo DeviceInfoInLogin `json:"deviceInfo" label:"设备信息"`
+	Id         string            `json:"id"  label:"id"`
+	Uuid       string            `json:"uuid"  label:"uuid"`
+	Phone      string            `json:"phone" validate:"required" label:"手机号"`
+}
+
+type LoginSmsForm struct {
+	DeviceInfo DeviceInfoInLogin `json:"deviceInfo" label:"设备信息"`
+	Id         string            `json:"id"  label:"id"`
+	Uuid       string            `json:"uuid"  label:"uuid"`
+	Phone      string            `json:"phone" validate:"required" label:"手机号"`
+	Code       string            `json:"code" validate:"required" label:"验证码"`
+}
+
 type UserListQuery struct {
 	Page       uint   `json:"page" form:"page" validate:"required" label:"页码"`
 	PageSize   uint   `json:"pageSize" form:"pageSize" validate:"required" label:"每页数量"`

@@ -61,6 +61,18 @@ proxy:
 jwt:
   key: ""
   expire-duration: 168h
+sms:
+  provider: "mock" # mock: 仅打印验证码到日志(开发联调用) / aliyun: 阿里云短信
+  code-expire-seconds: 300 # 验证码有效期(秒)
+  daily-limit: 10 # 单手机号每日发送上限, <=0不限制
+  per-ip-limit: 5 # 单IP每分钟发送上限, <=0不限制
+  # 阿里云短信配置, provider 设为 aliyun 时必填 access-key-id/access-key-secret/sign-name/template-code
+  # 短信模板需包含 ${code} 变量, 发送的模板参数为 {"code":"123456"}
+  access-key-id: ""
+  access-key-secret: ""
+  sign-name: ""
+  template-code: ""
+  endpoint: "" # 默认 dysmsapi.aliyuncs.com
 ldap:
   enable: false
   url: "ldap://ldap.example.com:389"

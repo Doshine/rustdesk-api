@@ -158,3 +158,38 @@ other = "Banned."
 description = "Register success, wait admin confirm."
 one = "Register success, wait admin confirm."
 other = "Register success, wait admin confirm."
+
+[LoginBanned]
+description = "Login banned."
+one = "Too many failed attempts, temporarily banned."
+other = "Too many failed attempts, temporarily banned."
+
+[UserDisabled]
+description = "User disabled."
+one = "User is disabled."
+other = "User is disabled."
+
+[PhoneFormatError]
+description = "Phone format error."
+one = "Invalid phone number format."
+other = "Invalid phone number format."
+
+[SmsCodeError]
+description = "Sms code error."
+one = "Invalid or expired code."
+other = "Invalid or expired code."
+
+[SmsDailyLimitExceeded]
+description = "Sms daily limit exceeded."
+one = "Daily SMS sending limit reached."
+other = "Daily SMS sending limit reached."
+
+[SmsIpLimitExceeded]
+description = "Sms ip limit exceeded."
+one = "Sending too frequently, please try again later."
+other = "Sending too frequently, please try again later."
+
+[SmsSendFailed]
+description = "Sms send failed."
+one = "Failed to send SMS."
+other = "Failed to send SMS."

@@ -19,6 +19,7 @@ type UserThird struct {
 func (u *UserThird) FromOauthUser(userId uint, oauthUser *OauthUser, oauthType string, op string) {
 	u.UserId = userId
 	u.OauthUser = *oauthUser
+	u.UnionId = oauthUser.UnionId
 	u.OauthType = oauthType
 	u.Op = op
 	// make sure email is lower case

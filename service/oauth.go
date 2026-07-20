@@ -123,6 +123,11 @@ func (os *OauthService) BeginAuth(op string) (error error, state, verifier, nonc
 			}
 		}
 
+		if oauthInfo.OauthType == model.OauthTypeWechat {
+			// 微信要求应用唯一标识参数名为appid而非client_id, 多出的client_id参数微信会忽略
+			extras = append(extras, oauth2.SetAuthURLParam("appid", oauthInfo.ClientId))
+		}
+
 		return err, state, verifier, nonce, oauthConfig.AuthCodeURL(state, extras...)
 	}
 
@@ -206,6 +211,13 @@ func (os *OauthService) GetOauthConfig(op string) (err error, oauthInfo *model.O
 		}
 		oauthConfig.Endpoint = provider.Endpoint()
 		oauthConfig.Scopes = os.constructScopes(oauthInfo.Scopes)
+	case model.OauthTypeWechat:
+		// 微信扫码登录(开放平台), 无id_token, 不走oidc验证, provider保持nil
+		oauthConfig.Endpoint = oauth2.Endpoint{
+			AuthURL:  model.AuthEndpointWechat,
+			TokenURL: model.TokenEndpointWechat,
+		}
+		oauthConfig.Scopes = []string{"snsapi_login"}
 	default:
 		return errors.New("unsupported OAuth type"), nil, nil, nil
 	}
@@ -332,6 +344,65 @@ func (os *OauthService) oidcCallback(oauthConfig *oauth2.Config, provider *oidc.
 	return nil, user.ToOauthUser()
 }
 
+// wechatCallback 微信回调, code换token(返回openid/unionid, 无id_token, 不走oidc验证), 再拉取userinfo
+func (os *OauthService) wechatCallback(oauthConfig *oauth2.Config, code string) (error, *model.OauthUser) {
+	// 设置代理客户端
+	httpClient := getHTTPClientWithProxy()
+	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)
+
+	token, err := oauthConfig.Exchange(ctx, code)
+	if err != nil {
+		Logger.Warn("wechat oauthConfig.Exchange() failed: ", err)
+		return errors.New("GetOauthTokenError"), nil
+	}
+	openid, _ := token.Extra("openid").(string)
+	unionid, _ := token.Extra("unionid").(string)
+	if token.AccessToken == "" || openid == "" {
+		// 微信接口出错时http状态码仍为200, 返回体里只有errcode/errmsg
+		Logger.Warn("wechat get token failed: ", token.Extra("errcode"), " ", token.Extra("errmsg"))
+		return errors.New("GetOauthTokenError"), nil
+	}
+
+	// 获取用户信息
+	client := oauthConfig.Client(ctx, token)
+	user := &model.WechatUser{}
+	resp, err := client.Get(model.UserEndpointWechat + "?access_token=" + url.QueryEscape(token.AccessToken) + "&openid=" + url.QueryEscape(openid))
+	if err != nil {
+		Logger.Warn("wechat failed getting user info: ", err)
+		return errors.New("GetOauthUserInfoError"), nil
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			Logger.Warn("failed closing response body: ", closeErr)
+		}
+	}()
+	if err = json.NewDecoder(resp.Body).Decode(user); err != nil {
+		Logger.Warn("wechat failed decoding user info: ", err)
+		return errors.New("DecodeOauthUserInfoError"), nil
+	}
+	if user.ErrCode != 0 {
+		Logger.Warn("wechat get user info failed: ", user.ErrCode, " ", user.ErrMsg)
+		return errors.New("GetOauthUserInfoError"), nil
+	}
+
+	// unionid优先作为OpenId, 没有则用openid
+	finalOpenId := unionid
+	if finalOpenId == "" {
+		finalOpenId = openid
+	}
+	username := user.Nickname
+	if username == "" {
+		username = "wechat_" + finalOpenId
+	}
+	return nil, &model.OauthUser{
+		OpenId:   finalOpenId,
+		UnionId:  unionid,
+		Name:     user.Nickname,
+		Username: username,
+		Picture:  user.HeadImgUrl,
+	}
+}
+
 // Callback: Get user information by code and op(Oauth provider)
 func (os *OauthService) Callback(code, verifier, op, nonce string) (err error, oauthUser *model.OauthUser) {
 	err, oauthInfo, oauthConfig, provider := os.GetOauthConfig(op)
@@ -347,6 +418,8 @@ func (os *OauthService) Callback(code, verifier, op, nonce string) (err error, o
 		err, oauthUser = os.linuxdoCallback(oauthConfig, provider, code, verifier, nonce)
 	case model.OauthTypeOidc, model.OauthTypeGoogle:
 		err, oauthUser = os.oidcCallback(oauthConfig, provider, code, verifier, nonce)
+	case model.OauthTypeWechat:
+		err, oauthUser = os.wechatCallback(oauthConfig, code)
 	default:
 		return errors.New("unsupported OAuth type"), nil
 	}

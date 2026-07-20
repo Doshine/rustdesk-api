@@ -36,6 +36,8 @@ func ApiInit(g *gin.Engine) {
 		// 如果返回oidc则可以通过oidc登录
 		frg.GET("/login-options", l.LoginOptions)
 		frg.POST("/login", l.Login)
+		frg.POST("/sms-code", l.SmsCode)
+		frg.POST("/login-sms", l.LoginSms)
 
 	}
 

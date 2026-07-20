@@ -7,7 +7,7 @@ type LoginLog struct {
 	DeviceId    string `json:"device_id"`
 	Uuid        string `json:"uuid"`
 	Ip          string `json:"ip"`
-	Type        string `json:"type"`     //account,oauth
+	Type        string `json:"type"`     //account,oauth,sms
 	Platform    string `json:"platform"` //windows,linux,mac,android,ios
 	UserTokenId uint   `json:"user_token_id" gorm:"default:0;not null;"`
 	IsDeleted   uint   `json:"is_deleted" gorm:"default:0;not null;"`
@@ -23,6 +23,7 @@ const (
 const (
 	LoginLogTypeAccount = "account"
 	LoginLogTypeOauth   = "oauth"
+	LoginLogTypeSms     = "sms"
 )
 
 const (

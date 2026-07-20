@@ -91,6 +91,128 @@ func (l *Login) Login(c *gin.Context) {
 	})
 }
 
+// SmsCode 发送短信验证码
+// @Tags 登录
+// @Summary 发送短信验证码
+// @Description 发送短信验证码
+// @Accept  json
+// @Produce  json
+// @Param body body api.SmsCodeForm true "手机号"
+// @Success 200 {object} response.Response
+// @Failure 500 {object} response.ErrorResponse
+// @Router /sms-code [post]
+func (l *Login) SmsCode(c *gin.Context) {
+	loginLimiter := global.LoginLimiter
+	clientIp := c.ClientIP()
+	banned, _ := loginLimiter.CheckSecurityStatus(clientIp)
+	if banned {
+		response.Error(c, response.TranslateMsg(c, "LoginBanned"))
+		return
+	}
+
+	f := &api.SmsCodeForm{}
+	err := c.ShouldBindJSON(f)
+	if err != nil {
+		global.Logger.Warn(fmt.Sprintf("SmsCode Fail: %s %s %s", "ParamsError", c.RemoteIP(), clientIp))
+		response.Error(c, response.TranslateMsg(c, "ParamsError")+err.Error())
+		return
+	}
+
+	errList := global.Validator.ValidStruct(c, f)
+	if len(errList) > 0 {
+		global.Logger.Warn(fmt.Sprintf("SmsCode Fail: %s %s %s", "ParamsError", c.RemoteIP(), clientIp))
+		response.Error(c, errList[0])
+		return
+	}
+
+	err = service.AllService.SmsService.SendLoginCode(f.Phone, clientIp)
+	if err != nil {
+		global.Logger.Warn(fmt.Sprintf("SmsCode Fail: %s %s %s", err.Error(), c.RemoteIP(), clientIp))
+		response.Error(c, response.TranslateMsg(c, err.Error()))
+		return
+	}
+	response.Success(c, nil)
+}
+
+// LoginSms 短信验证码登录
+// @Tags 登录
+// @Summary 短信验证码登录
+// @Description 短信验证码登录
+// @Accept  json
+// @Produce  json
+// @Param body body api.LoginSmsForm true "登录表单"
+// @Success 200 {object} apiResp.LoginRes
+// @Failure 500 {object} response.ErrorResponse
+// @Router /login-sms [post]
+func (l *Login) LoginSms(c *gin.Context) {
+	loginLimiter := global.LoginLimiter
+	clientIp := c.ClientIP()
+	banned, _ := loginLimiter.CheckSecurityStatus(clientIp)
+	if banned {
+		response.Error(c, response.TranslateMsg(c, "LoginBanned"))
+		return
+	}
+
+	f := &api.LoginSmsForm{}
+	err := c.ShouldBindJSON(f)
+	if err != nil {
+		global.Logger.Warn(fmt.Sprintf("LoginSms Fail: %s %s %s", "ParamsError", c.RemoteIP(), clientIp))
+		response.Error(c, response.TranslateMsg(c, "ParamsError")+err.Error())
+		return
+	}
+
+	errList := global.Validator.ValidStruct(c, f)
+	if len(errList) > 0 {
+		global.Logger.Warn(fmt.Sprintf("LoginSms Fail: %s %s %s", "ParamsError", c.RemoteIP(), clientIp))
+		response.Error(c, errList[0])
+		return
+	}
+
+	if !service.AllService.SmsService.VerifyLoginCode(f.Phone, f.Code) {
+		loginLimiter.RecordFailedAttempt(clientIp)
+		global.Logger.Warn(fmt.Sprintf("LoginSms Fail: %s %s %s", "SmsCodeError", c.RemoteIP(), clientIp))
+		response.Error(c, response.TranslateMsg(c, "SmsCodeError"))
+		return
+	}
+
+	u := service.AllService.UserService.InfoByPhone(f.Phone)
+	if u.Id == 0 {
+		// 手机号未注册, 按注册开关自动注册
+		if !global.Config.App.Register {
+			response.Error(c, response.TranslateMsg(c, "RegisterClosed"))
+			return
+		}
+		u = service.AllService.UserService.RegisterByPhone(f.Phone)
+		if u == nil || u.Id == 0 {
+			response.Error(c, response.TranslateMsg(c, "OperationFailed"))
+			return
+		}
+	}
+
+	if !service.AllService.UserService.CheckUserEnable(u) {
+		response.Error(c, response.TranslateMsg(c, "UserDisabled"))
+		return
+	}
+
+	ut := service.AllService.UserService.Login(u, &model.LoginLog{
+		UserId:   u.Id,
+		Client:   model.LoginLogClientApp,
+		DeviceId: f.Id,
+		Uuid:     f.Uuid,
+		Ip:       clientIp,
+		Type:     model.LoginLogTypeSms,
+		Platform: f.DeviceInfo.Os,
+	})
+
+	// 登录成功，清除登录限制
+	loginLimiter.RemoveAttempts(clientIp)
+	c.JSON(http.StatusOK, apiResp.LoginRes{
+		AccessToken: ut.Token,
+		Type:        "access_token",
+		User:        *(&apiResp.UserPayload{}).FromUser(u),
+	})
+}
+
 // LoginOptions
 // @Tags 登录
 // @Summary 登录选项

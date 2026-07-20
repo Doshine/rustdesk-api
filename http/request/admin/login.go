@@ -8,6 +8,18 @@ type Login struct {
 	CaptchaId string `json:"captcha_id,omitempty"`
 }
 
+type SmsCodeRequest struct {
+	Phone     string `json:"phone" validate:"required" label:"手机号"`
+	Captcha   string `json:"captcha,omitempty" label:"验证码"`
+	CaptchaId string `json:"captcha_id,omitempty"`
+}
+
+type LoginSmsRequest struct {
+	Phone    string `json:"phone" validate:"required" label:"手机号"`
+	Code     string `json:"code" validate:"required" label:"验证码"`
+	Platform string `json:"platform" label:"平台"`
+}
+
 type LoginLogQuery struct {
 	UserId int `form:"user_id"`
 	IsMy   int `form:"is_my"`

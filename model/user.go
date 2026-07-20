@@ -4,6 +4,7 @@ type User struct {
 	IdModel
 	Username string `json:"username" gorm:"default:'';not null;uniqueIndex"`
 	Email    string `json:"email" gorm:"default:'';not null;index"`
+	Phone    string `json:"phone" gorm:"default:'';not null;index"`
 	// Email	string     	`json:"email" `
 	Password string     `json:"-" gorm:"default:'';not null;"`
 	Nickname string     `json:"nickname" gorm:"default:'';not null;"`

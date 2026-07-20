@@ -160,3 +160,38 @@ other = "已被封禁。"
 description = "Register success, wait for admin confirm."
 one = "注册成功，请等待管理员审核。"
 other = "注册成功，请等待管理员审核。"
+
+[LoginBanned]
+description = "Login banned."
+one = "失败次数过多，已被暂时封禁。"
+other = "失败次数过多，已被暂时封禁。"
+
+[UserDisabled]
+description = "User disabled."
+one = "用户已被禁用。"
+other = "用户已被禁用。"
+
+[PhoneFormatError]
+description = "Phone format error."
+one = "手机号格式错误。"
+other = "手机号格式错误。"
+
+[SmsCodeError]
+description = "Sms code error."
+one = "验证码错误或已过期。"
+other = "验证码错误或已过期。"
+
+[SmsDailyLimitExceeded]
+description = "Sms daily limit exceeded."
+one = "今日短信发送次数已达上限。"
+other = "今日短信发送次数已达上限。"
+
+[SmsIpLimitExceeded]
+description = "Sms ip limit exceeded."
+one = "短信发送过于频繁，请稍后再试。"
+other = "短信发送过于频繁，请稍后再试。"
+
+[SmsSendFailed]
+description = "Sms send failed."
+one = "短信发送失败。"
+other = "短信发送失败。"

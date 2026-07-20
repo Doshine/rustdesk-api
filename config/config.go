@@ -47,6 +47,7 @@ type Config struct {
 	Rustdesk   Rustdesk
 	Proxy      Proxy
 	Ldap       Ldap
+	Sms        SmsConfig
 }
 
 func (a *Admin) Init() {
