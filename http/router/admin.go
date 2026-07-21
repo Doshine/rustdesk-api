@@ -50,6 +50,7 @@ func Init(g *gin.Engine) {
 
 	RustdeskCmdBind(adg)
 	DeviceGroupBind(adg)
+	RelayNodeBind(adg)
 	//访问静态文件
 	//g.StaticFS("/upload", http.Dir(global.Config.Gin.ResourcesPath+"/upload"))
 }
@@ -161,6 +162,10 @@ func PeerBind(rg *gin.RouterGroup) {
 		aR.POST("/update", cont.Update)
 		aR.POST("/delete", cont.Delete)
 		aR.POST("/batchDelete", cont.BatchDelete)
+		// P3-1 设备审批：批量审批通过
+		aR.POST("/approve", cont.Approve)
+		// P3-1 批量标签：管理员粒度批量更新地址簿条目标签
+		aR.POST("/batchUpdateTags", cont.BatchUpdateTags)
 	}
 }
 
@@ -323,4 +328,17 @@ func ShareRecordBind(rg *gin.RouterGroup) {
 		aR.POST("/batchDelete", cont.BatchDelete)
 	}
 
+}
+
+// RelayNodeBind 中继节点管理（P3 中继节点可视化管理）
+func RelayNodeBind(rg *gin.RouterGroup) {
+	aR := rg.Group("/relay-nodes").Use(middleware.AdminPrivilege())
+	{
+		cont := &admin.RelayNode{}
+		aR.GET("/list", cont.List)
+		aR.POST("/create", cont.Create)
+		aR.POST("/update", cont.Update)
+		aR.POST("/delete", cont.Delete)
+		aR.POST("/test", cont.Test)
+	}
 }

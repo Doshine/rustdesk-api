@@ -340,3 +340,12 @@ func (s *AddressBookService) BatchUpdateTags(abs []*model.AddressBook, tags []st
 	tagsv, _ := json.Marshal(tags)
 	return DB.Model(&model.AddressBook{}).Where("row_id in ?", ids).Update("tags", tagsv).Error
 }
+
+// BatchUpdateTagsByPeerIds 按设备 id（peers.id 字符串）批量更新其关联的所有地址簿条目标签。
+// 管理员粒度：跨用户条目一并更新；不在任何地址簿中的设备自然匹配不到、被静默跳过。
+// 返回实际更新的地址簿条目数。
+func (s *AddressBookService) BatchUpdateTagsByPeerIds(peerIds []string, tags []string) (int64, error) {
+	tagsv, _ := json.Marshal(tags)
+	res := DB.Model(&model.AddressBook{}).Where("id in (?)", peerIds).Update("tags", tagsv)
+	return res.RowsAffected, res.Error
+}

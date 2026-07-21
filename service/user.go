@@ -303,10 +303,28 @@ func (us *UserService) IsAdmin(u *model.User) bool {
 	return u != nil && *u.IsAdmin
 }
 
-// RouteNames
+// RouteNames 返回用户可见的导航路由名称列表（P3-1 角色自定义导航）。
+//
+// 重要说明：该方法仅用于控制前端导航可见性（后台菜单/路由的展示），
+// 不构成、也不改变任何后端接口鉴权。后端权限仍由 middleware.AdminPrivilege
+// 等中间件基于 user.IsAdmin 强制校验——即使某个路由在此处被组配置隐藏，
+// 直接调用对应管理接口依然会被鉴权中间件正常拦截，此处逻辑不影响安全边界。
+//
+// 规则：管理员返回 "*"（全部路由）；普通用户若所属用户组配置了自定义导航
+// （groups.route_names 非空且为合法 JSON 数组），则返回组配置；否则返回
+// 系统默认的普通用户导航 model.UserRouteNames。
 func (us *UserService) RouteNames(u *model.User) []string {
 	if us.IsAdmin(u) {
 		return model.AdminRouteNames
+	}
+	// 普通用户：优先使用所属用户组配置的自定义导航
+	if u != nil && u.GroupId > 0 {
+		g := AllService.GroupService.InfoById(u.GroupId)
+		if g != nil && g.Id > 0 {
+			if names := g.RouteNameList(); len(names) > 0 {
+				return names
+			}
+		}
 	}
 	return model.UserRouteNames
 }

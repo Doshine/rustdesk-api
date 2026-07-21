@@ -57,6 +57,11 @@ func (ct *Group) Create(c *gin.Context) {
 		response.Fail(c, 101, errList[0])
 		return
 	}
+	// P3-1 角色导航：校验自定义导航为 JSON 字符串数组（空串=默认导航，合法）
+	if err := f.ValidateRouteNames(); err != nil {
+		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError")+err.Error())
+		return
+	}
 	u := f.ToGroup()
 	err := service.AllService.GroupService.Create(u)
 	if err != nil {
@@ -112,6 +117,11 @@ func (ct *Group) Update(c *gin.Context) {
 	errList := global.Validator.ValidStruct(c, f)
 	if len(errList) > 0 {
 		response.Fail(c, 101, errList[0])
+		return
+	}
+	// P3-1 角色导航：校验自定义导航为 JSON 字符串数组（空串=默认导航，合法）
+	if err := f.ValidateRouteNames(); err != nil {
+		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError")+err.Error())
 		return
 	}
 	u := f.ToGroup()

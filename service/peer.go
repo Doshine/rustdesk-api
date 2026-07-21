@@ -136,6 +136,23 @@ func (ps *PeerService) GetUuidListByIDs(ids []uint) ([]string, error) {
 	return newUuids, err
 }
 
+// GetIdListByRowIds 根据 row_id 列表获取设备 id（peers.id 字符串）列表。
+// 地址簿条目通过 address_book.id = peers.id 与设备关联（见 AddressBookService.FromPeer）。
+func (ps *PeerService) GetIdListByRowIds(ids []uint) ([]string, error) {
+	var pids []string
+	err := DB.Model(&model.Peer{}).
+		Where("row_id in (?)", ids).
+		Pluck("id", &pids).Error
+	//过滤pids中的空字符串
+	var newPids []string
+	for _, pid := range pids {
+		if pid != "" {
+			newPids = append(newPids, pid)
+		}
+	}
+	return newPids, err
+}
+
 // BatchDelete 批量删除, 同时也应该删除token
 func (ps *PeerService) BatchDelete(ids []uint) error {
 	uuids, err := ps.GetUuidListByIDs(ids)
@@ -150,4 +167,17 @@ func (ps *PeerService) BatchDelete(ids []uint) error {
 // Update 更新
 func (ps *PeerService) Update(u *model.Peer) error {
 	return DB.Model(u).Updates(u).Error
+}
+
+// UpdateStatus 更新设备审批状态（P3-1 设备审批）。
+// 使用单字段 Update 而非结构体 Updates：gorm 会忽略带 default 标签字段的零值，
+// 只有单字段更新才能把 Status 显式写为 0（待审批）。
+func (ps *PeerService) UpdateStatus(rowId uint, status int) error {
+	return DB.Model(&model.Peer{}).Where("row_id = ?", rowId).Update("status", status).Error
+}
+
+// BatchApprove 批量通过设备审批（Status 置为已通过），返回受影响行数。
+func (ps *PeerService) BatchApprove(ids []uint) (int64, error) {
+	res := DB.Model(&model.Peer{}).Where("row_id in (?)", ids).Update("status", model.PeerStatusApproved)
+	return res.RowsAffected, res.Error
 }

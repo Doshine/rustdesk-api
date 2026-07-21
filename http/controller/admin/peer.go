@@ -60,6 +60,8 @@ func (ct *Peer) Create(c *gin.Context) {
 		return
 	}
 	p := f.ToPeer()
+	// P3-1 设备审批：管理员手动创建的设备视为可信，Status 保持零值，
+	// gorm 会按 default:1 标签写入"已通过"，无需额外处理。
 	err := service.AllService.PeerService.Create(p)
 	if err != nil {
 		response.Fail(c, 101, response.TranslateMsg(c, "OperationFailed")+err.Error())
@@ -116,6 +118,10 @@ func (ct *Peer) List(c *gin.Context) {
 		}
 		if query.Alias != "" {
 			tx.Where("alias like ?", "%"+query.Alias+"%")
+		}
+		// P3-1 设备审批：按审批状态过滤（0 待审批 / 1 已通过），未传参则不过滤
+		if query.Status != nil {
+			tx.Where("status = ?", *query.Status)
 		}
 	})
 	response.Success(c, res)
@@ -237,4 +243,77 @@ func (ct *Peer) SimpleData(c *gin.Context) {
 		tx.Where("id in (?)", f.Ids)
 	})
 	response.Success(c, res)
+}
+
+// Approve 设备审批通过
+// @Tags 设备
+// @Summary 设备审批通过（批量）
+// @Description 将指定设备的审批状态置为"已通过"（P3-1 设备审批），返回实际更新条数
+// @Accept  json
+// @Produce  json
+// @Param body body admin.PeerBatchApproveForm true "设备 row_id 列表"
+// @Success 200 {object} response.Response{data=gin.H}
+// @Failure 500 {object} response.Response
+// @Router /admin/peer/approve [post]
+// @Security token
+func (ct *Peer) Approve(c *gin.Context) {
+	f := &admin.PeerBatchApproveForm{}
+	if err := c.ShouldBindJSON(f); err != nil {
+		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError")+err.Error())
+		return
+	}
+	if len(f.RowIds) == 0 {
+		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError"))
+		return
+	}
+	affected, err := service.AllService.PeerService.BatchApprove(f.RowIds)
+	if err != nil {
+		response.Fail(c, 101, response.TranslateMsg(c, "OperationFailed")+err.Error())
+		return
+	}
+	response.Success(c, &gin.H{"affected": affected})
+}
+
+// BatchUpdateTags 按设备批量更新标签
+// @Tags 设备
+// @Summary 按设备批量更新标签（管理员粒度）
+// @Description 入参 row_ids 为设备 id（peers.row_id）列表，作用于这些设备对应的全部地址簿条目
+// @Description （关联关系：address_book.id = peers.id，跨用户条目一并更新）；tags 为全量替换后的
+// @Description 标签数组（与既有 tag 模型一致：address_book.tags 存 JSON 数组）。
+// @Description 未加入任何地址簿的设备会被静默跳过，不报错；data.affected 返回实际更新的条目数。
+// @Accept  json
+// @Produce  json
+// @Param body body admin.BatchUpdateTagsForm true "设备 peers.row_id 列表 + 标签数组"
+// @Success 200 {object} response.Response{data=gin.H}
+// @Failure 500 {object} response.Response
+// @Router /admin/peer/batchUpdateTags [post]
+// @Security token
+func (ct *Peer) BatchUpdateTags(c *gin.Context) {
+	f := &admin.BatchUpdateTagsForm{}
+	if err := c.ShouldBindJSON(f); err != nil {
+		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError")+err.Error())
+		return
+	}
+	if len(f.RowIds) == 0 {
+		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError"))
+		return
+	}
+	// row_ids 为 peers.row_id（前端设备管理页选中的是设备）：先取设备标识 peers.id，
+	// 地址簿条目通过 address_book.id = peers.id 与设备关联。
+	peerIds, err := service.AllService.PeerService.GetIdListByRowIds(f.RowIds)
+	if err != nil {
+		response.Fail(c, 101, response.TranslateMsg(c, "OperationFailed")+err.Error())
+		return
+	}
+	var affected int64 = 0
+	if len(peerIds) > 0 {
+		// 管理员粒度：不按 user_id 过滤，跨用户条目一并更新；
+		// 不在任何地址簿中的设备匹配不到条目，被静默跳过（affected 不计）。
+		affected, err = service.AllService.AddressBookService.BatchUpdateTagsByPeerIds(peerIds, f.Tags)
+		if err != nil {
+			response.Fail(c, 101, response.TranslateMsg(c, "OperationFailed")+err.Error())
+			return
+		}
+	}
+	response.Success(c, &gin.H{"affected": affected})
 }

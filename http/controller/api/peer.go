@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	requstform "github.com/lejianwen/rustdesk-api/v2/http/request/api"
 	"github.com/lejianwen/rustdesk-api/v2/http/response"
+	"github.com/lejianwen/rustdesk-api/v2/model"
 	"github.com/lejianwen/rustdesk-api/v2/service"
 	"net/http"
 )
@@ -36,11 +37,19 @@ func (p *Peer) SysInfo(c *gin.Context) {
 		pe = f.ToPeer()
 		pe.UserId = service.AllService.UserService.FindLatestUserIdFromLoginLogByUuid(pe.Uuid, pe.Id)
 		err = service.AllService.PeerService.Create(pe)
+		if err == nil {
+			// P3-1 设备审批：新注册设备进入待审批状态，等待管理员审批通过。
+			// 注意：Peer.Status 带 gorm default:1 标签，Create 时零值会被数据库
+			// 默认值(1)覆盖，因此必须在创建后通过单字段更新显式置为待审批(0)。
+			err = service.AllService.PeerService.UpdateStatus(pe.RowId, model.PeerStatusPending)
+		}
 		if err != nil {
 			response.Error(c, response.TranslateMsg(c, "OperationFailed")+err.Error())
 			return
 		}
 	} else {
+		// 更新分支不得触碰审批状态：fpe 由上报表单转换而来，Status 为零值，
+		// gorm 结构体 Updates 会跳过零值字段，数据库中的 Status 不会被覆盖。
 		if pe.UserId == 0 {
 			pe.UserId = service.AllService.UserService.FindLatestUserIdFromLoginLogByUuid(pe.Uuid, pe.Id)
 		}

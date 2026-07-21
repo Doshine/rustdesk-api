@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const DatabaseVersion = 266
+const DatabaseVersion = 268
 
 // @title 管理系统API
 // @version 1.0
@@ -283,6 +283,12 @@ func DatabaseAutoUpdate() {
 		if v.Version < 246 {
 			db.Exec("update oauths set issuer = 'https://accounts.google.com' where op = 'google' and issuer is null")
 		}
+		if v.Version < 267 {
+			// P3-1 设备审批：存量设备审批状态统一置为"已通过"，保持升级前行为一致。
+			// peers.status 列由 AutoMigrate 以 default:1 添加，此处为兜底，
+			// 确保任何存量的 0 / NULL 值都被纠正为已通过（仅在升级到 267 时执行一次）。
+			db.Exec("update peers set status = ? where status <> ? or status is null", model.PeerStatusApproved, model.PeerStatusApproved)
+		}
 	}
 
 }
@@ -306,6 +312,7 @@ func Migrate(version uint) {
 		&model.AddressBookCollectionRule{},
 		&model.ServerCmd{},
 		&model.DeviceGroup{},
+		&model.RelayNode{},
 	)
 	if err != nil {
 		global.Logger.Error("migrate err :=>", err)

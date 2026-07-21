@@ -20,6 +20,11 @@ type PeerBatchDeleteForm struct {
 	RowIds []uint `json:"row_ids" validate:"required"`
 }
 
+// PeerBatchApproveForm 设备批量审批通过表单（P3-1 设备审批）
+type PeerBatchApproveForm struct {
+	RowIds []uint `json:"row_ids" validate:"required"`
+}
+
 // ToPeer
 func (f *PeerForm) ToPeer() *model.Peer {
 	return &model.Peer{
@@ -46,6 +51,9 @@ type PeerQuery struct {
 	Ip       string `json:"ip" form:"ip"`
 	Username string `json:"username" form:"username"`
 	Alias    string `json:"alias" form:"alias"`
+	// Status 审批状态过滤（P3-1 设备审批）：0 待审批 / 1 已通过；不传表示不过滤。
+	// 使用指针以区分"未传参"与"显式传 0"。
+	Status *int `json:"status" form:"status"`
 }
 
 type SimpleDataQuery struct {
