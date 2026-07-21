@@ -86968,7 +86968,7 @@ r=$.ne()
 q=A.aOi(n,B.jM,n,A.aOG())
 p=A.aWL()
 o=A.a([new A.Bh(s,A.w(t.Vk,t.Qd)),$.aSH()],t.tc)
-return A.aZW(new A.Cz(r,new A.Uw(p,n),o,A.aYy(n),"RustDesk",q,!1,n),m)}}
+return A.aZW(new A.Cz(r,new A.Uw(p,n),o,A.aYy(n),"蓝鲸银河",q,!1,n),m)}}
 A.oh.prototype={}
 A.q0.prototype={
 gkd(){var s,r=this,q=r.b
@@ -88228,7 +88228,7 @@ $1(a){var s,r=null,q=t.S5,p=A.a([],q),o=t.N
 p=B.c.O(p,A.a([A.eS(A.aq(A.ac("ID/Relay Server"),r,r,r,r,r,r,r),!0,"server",o)],q))
 if(B.d.v(A.aDY(),"admin.rustdesk.com"))s=A.a([],q)
 else{s=this.a
-s=A.a([A.eS(A.aq(s==null?A.ac("Login"):A.ac("Logout")+(" ("+s+")"),r,r,r,r,r,r,r),!0,"login",o)],q)}return B.c.O(B.c.O(p,s),A.a([A.eS(A.aq(A.ac("About")+" RustDesk",r,r,r,r,r,r,r),!0,"about",o)],q))},
+s=A.a([A.eS(A.aq(s==null?A.ac("Login"):A.ac("Logout")+(" ("+s+")"),r,r,r,r,r,r,r),!0,"login",o)],q)}return B.c.O(B.c.O(p,s),A.a([A.eS(A.aq(A.ac("About")+" 蓝鲸银河",r,r,r,r,r,r,r),!0,"about",o)],q))},
 $S:514}
 A.aB9.prototype={
 $1(a){var s
@@ -88539,7 +88539,7 @@ if(s==null)return!1
 else return s!==a}}
 A.Uw.prototype={
 I(a){var s=null,r=this.c
-return A.Sl(A.aG9(r.e,!0,s,A.aq("RustDesk"+($.aEg?" (Beta) ":""),s,s,s,s,s,s,s)),B.c6,r,s,s,s,s)}}
+return A.Sl(A.aG9(r.e,!0,s,A.aq("蓝鲸银河"+($.aEg?" (Beta) ":""),s,s,s,s,s,s,s)),B.c6,r,s,s,s,s)}}
 A.rs.prototype={
 ac(){var s=null
 return new A.HU(!$.nb,A.lN(!0,s,!0,!0,s,s,!1),A.lN(!0,s,!0,!0,s,s,!1),new A.j(0,0),B.i)}}
@@ -89347,7 +89347,7 @@ r.r.$0()}},
 $S:0}
 A.aEN.prototype={
 $2(a,b){var s=null,r=t.D
-return new A.dT(A.aq(A.ac("About")+" RustDesk",s,s,s,s,s,s,s),A.UE(B.c0,A.a([A.aq("Version: "+$.aRM,s,s,s,s,s,s,s),A.o5(!1,s,!0,new A.bD(new A.ap(0,8,0,8),A.aq("rustdesk.com",s,s,s,s,A.bG(s,s,s,s,B.na,s,s,s,s,s,s,s,s,s,s,s,s,!0,s,s,s,s,s,s,s,s),s,s),s),s,!0,s,s,s,s,s,s,s,s,s,new A.aEM(),s,s,s,s,s,s)],r),B.eU,B.ad,B.c0,0,12,s,B.bv),A.a([],r),s,s)},
+return new A.dT(A.aq(A.ac("About")+" 蓝鲸银河",s,s,s,s,s,s,s),A.UE(B.c0,A.a([A.aq("Version: "+$.aRM,s,s,s,s,s,s,s),A.o5(!1,s,!0,new A.bD(new A.ap(0,8,0,8),A.aq("rustdesk.com",s,s,s,s,A.bG(s,s,s,s,B.na,s,s,s,s,s,s,s,s,s,s,s,s,!0,s,s,s,s,s,s,s,s),s,s),s),s,!0,s,s,s,s,s,s,s,s,s,new A.aEM(),s,s,s,s,s,s)],r),B.eU,B.ad,B.c0,0,12,s,B.bv),A.a([],r),s,s)},
 $S:34}
 A.aEM.prototype={
 $0(){var s=0,r=A.H(t.H)
