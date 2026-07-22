@@ -134,6 +134,15 @@ func (m *MemoryCache) Set(key string, value interface{}, exp int) error {
 	return nil
 }
 
+func (m *MemoryCache) Delete(key string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if item, ok := m.data[key]; ok {
+		m.deleteItem(item)
+	}
+	return nil
+}
+
 func (m *MemoryCache) RemoveOldest() {
 	for m.maxBytes != 0 && m.usedBytes > m.maxBytes {
 		elem := m.ll.Front()

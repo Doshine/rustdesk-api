@@ -25,13 +25,14 @@ type LdapUser struct {
 // }
 
 type Ldap struct {
-	Enable       bool     `mapstructure:"enable"`
-	Url          string   `mapstructure:"url"`
-	TlsCaFile    string   `mapstructure:"tls-ca-file"`
-	TlsVerify    bool     `mapstructure:"tls-verify"`
-	BaseDn       string   `mapstructure:"base-dn"`
-	BindDn       string   `mapstructure:"bind-dn"`
-	BindPassword string   `mapstructure:"bind-password"`
-	User         LdapUser `mapstructure:"user"`
+	Enable             bool     `mapstructure:"enable"`
+	Url                string   `mapstructure:"url"`
+	TlsCaFile          string   `mapstructure:"tls-ca-file"`
+	TlsVerify          bool     `mapstructure:"tls-verify"`
+	BaseDn             string   `mapstructure:"base-dn"`
+	BindDn             string   `mapstructure:"bind-dn"`
+	BindPassword       string   `mapstructure:"bind-password"`
+	AllowLocalFallback bool     `mapstructure:"allow-local-fallback"`
+	User               LdapUser `mapstructure:"user"`
 	// Group        LdapGroup `mapstructure:"group"`
 }

@@ -9,6 +9,8 @@ type LoginPayload struct {
 	Token      string   `json:"token"`
 	RouteNames []string `json:"route_names"`
 	Nickname   string   `json:"nickname"`
+	Role       string   `json:"role"`
+	MfaEnabled bool     `json:"mfa_enabled"`
 }
 
 func (lp *LoginPayload) FromUser(user *model.User) {
@@ -16,6 +18,8 @@ func (lp *LoginPayload) FromUser(user *model.User) {
 	lp.Email = user.Email
 	lp.Avatar = user.Avatar
 	lp.Nickname = user.Nickname
+	lp.Role = user.Role
+	lp.MfaEnabled = user.MfaEnabled
 }
 
 type UserOauthItem struct {

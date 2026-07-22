@@ -11,6 +11,7 @@ import (
 	"github.com/lejianwen/rustdesk-api/v2/model"
 	"github.com/lejianwen/rustdesk-api/v2/utils"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type UserService struct {
@@ -59,7 +60,10 @@ func (us *UserService) InfoByUsernamePassword(username, password string) *model.
 			return u
 		}
 		Logger.Errorf("LDAP authentication failed, %v", err)
-		Logger.Warn("Fallback to local database")
+		if !Config.Ldap.AllowLocalFallback {
+			return &model.User{}
+		}
+		Logger.Warn("LDAP local fallback is explicitly enabled")
 	}
 	u := &model.User{}
 	DB.Where("username = ?", username).First(u)
@@ -75,6 +79,17 @@ func (us *UserService) InfoByUsernamePassword(username, password string) *model.
 		u.Password = newHash
 	}
 	return u
+}
+
+// VerifyCurrentPassword performs a fresh password check for sensitive
+// account changes such as disabling MFA. It supports the same LDAP/local
+// authentication policy as the sign-in flow without issuing a new session.
+func (us *UserService) VerifyCurrentPassword(u *model.User, password string) bool {
+	if u == nil || u.Id == 0 || strings.TrimSpace(password) == "" {
+		return false
+	}
+	checked := us.InfoByUsernamePassword(u.Username, password)
+	return checked != nil && checked.Id == u.Id
 }
 
 // InfoByAccesstoken 根据accesstoken取用户信息
@@ -94,29 +109,66 @@ func (us *UserService) InfoByAccessToken(token string) (*model.User, *model.User
 
 // GenerateToken 生成token
 func (us *UserService) GenerateToken(u *model.User) string {
-	if len(Jwt.Key) > 0 {
-		return Jwt.GenerateToken(u.Id)
-	}
-	return utils.Md5(u.Username + time.Now().String())
+	return Jwt.GenerateToken(u.Id)
 }
 
 // Login 登录
 func (us *UserService) Login(u *model.User, llog *model.LoginLog) *model.UserToken {
 	token := us.GenerateToken(u)
 	ut := &model.UserToken{
-		UserId:     u.Id,
-		Token:      token,
-		DeviceUuid: llog.Uuid,
-		DeviceId:   llog.DeviceId,
-		ExpiredAt:  us.UserTokenExpireTimestamp(),
+		UserId:              u.Id,
+		Token:               token,
+		DeviceUuid:          llog.Uuid,
+		DeviceId:            llog.DeviceId,
+		PasskeyCredentialId: llog.PasskeyCredentialId,
+		ExpiredAt:           us.UserTokenExpireTimestamp(),
 	}
 	DB.Create(ut)
-	llog.UserTokenId = ut.UserId
+	llog.UserTokenId = ut.Id
 	DB.Create(llog)
 	if llog.Uuid != "" {
 		AllService.PeerService.UuidBindUserId(llog.DeviceId, llog.Uuid, u.Id)
 	}
 	return ut
+}
+
+// LoginWithPasskey creates a session while holding the credential row lock.
+// Revoke and login therefore serialize: either revocation removes the newly
+// created session, or a revoked credential is rejected before a bearer token
+// can be issued.
+func (us *UserService) LoginWithPasskey(u *model.User, llog *model.LoginLog) (*model.UserToken, error) {
+	if u == nil || u.Id == 0 || llog == nil || llog.PasskeyCredentialId == 0 {
+		return nil, ErrPasskeyInvalidCredential
+	}
+	var ut *model.UserToken
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		credential := &model.PasskeyCredential{}
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where(
+			"id = ? AND user_id = ? AND revoked_at IS NULL", llog.PasskeyCredentialId, u.Id,
+		).First(credential).Error; err != nil {
+			return ErrPasskeyCredentialRevoked
+		}
+		ut = &model.UserToken{
+			UserId:              u.Id,
+			Token:               us.GenerateToken(u),
+			DeviceUuid:          llog.Uuid,
+			DeviceId:            llog.DeviceId,
+			PasskeyCredentialId: llog.PasskeyCredentialId,
+			ExpiredAt:           us.UserTokenExpireTimestamp(),
+		}
+		if err := tx.Create(ut).Error; err != nil {
+			return err
+		}
+		llog.UserTokenId = ut.Id
+		return tx.Create(llog).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	if llog.Uuid != "" {
+		AllService.PeerService.UuidBindUserId(llog.DeviceId, llog.Uuid, u.Id)
+	}
+	return ut, nil
 }
 
 // CurUser 获取当前用户
@@ -181,6 +233,17 @@ func (us *UserService) Create(u *model.User) error {
 		return errors.New("UsernameExists")
 	}
 	u.Username = us.formatUsername(u.Username)
+	if u.Role == "" {
+		u.Role = model.RoleUser
+	}
+	if !model.IsValidRole(u.Role) || u.Role == model.RoleOwner {
+		return errors.New("invalid or reserved role")
+	}
+	if u.Role == model.RoleAdmin || (u.IsAdmin != nil && *u.IsAdmin) {
+		isAdmin := true
+		u.IsAdmin = &isAdmin
+		u.Role = model.RoleAdmin
+	}
 	var err error
 	u.Password, err = utils.EncryptPassword(u.Password)
 	if err != nil {
@@ -257,6 +320,36 @@ func (us *UserService) Delete(u *model.User) error {
 // Update 更新
 func (us *UserService) Update(u *model.User) error {
 	currentUser := us.InfoById(u.Id)
+	if currentUser.Id == 0 {
+		return errors.New("user not found")
+	}
+	requestedRole := u.Role
+	if requestedRole == model.RoleOwner && currentUser.Role != model.RoleOwner {
+		return errors.New("owner role cannot be assigned through the user API")
+	}
+	if requestedRole != "" && !model.IsValidRole(requestedRole) {
+		return errors.New("invalid role")
+	}
+	if u.Role == "" {
+		u.Role = currentUser.Role
+		if u.Role == "" {
+			if us.IsAdmin(currentUser) {
+				u.Role = model.RoleAdmin
+			} else {
+				u.Role = model.RoleUser
+			}
+		}
+	}
+	if u.Role == model.RoleAdmin {
+		isAdmin := true
+		u.IsAdmin = &isAdmin
+	} else if u.Role == model.RoleOwner {
+		isAdmin := true
+		u.IsAdmin = &isAdmin
+	} else {
+		isAdmin := false
+		u.IsAdmin = &isAdmin
+	}
 	// 如果当前用户是管理员并且 IsAdmin 不为空，进行检查
 	if us.IsAdmin(currentUser) {
 		adminCount := us.getAdminUserCount()
@@ -300,7 +393,20 @@ func (us *UserService) UpdatePassword(u *model.User, password string) error {
 
 // IsAdmin 是否管理员
 func (us *UserService) IsAdmin(u *model.User) bool {
-	return u != nil && *u.IsAdmin
+	return u != nil && u.IsAdmin != nil && *u.IsAdmin
+}
+
+// HasPermission is the backend authorization boundary for roles that are not
+// full administrators. IsAdmin remains a compatibility escape hatch for the
+// existing owner/admin accounts while auditor/operator roles are least-privilege.
+func (us *UserService) HasPermission(u *model.User, permission string) bool {
+	if u == nil || !us.CheckUserEnable(u) {
+		return false
+	}
+	if us.IsAdmin(u) {
+		return true
+	}
+	return model.RoleHasPermission(u.Role, permission)
 }
 
 // RouteNames 返回用户可见的导航路由名称列表（P3-1 角色自定义导航）。
@@ -503,7 +609,20 @@ func (us *UserService) TokenList(page uint, size uint, f func(tx *gorm.DB)) *mod
 	tx.Count(&res.Total)
 	tx.Scopes(Paginate(page, size))
 	tx.Find(&res.UserTokens)
+	for i := range res.UserTokens {
+		res.UserTokens[i].TokenHint = tokenHint(res.UserTokens[i].Token)
+	}
 	return res
+}
+
+func tokenHint(token string) string {
+	if token == "" {
+		return ""
+	}
+	if len(token) <= 4 {
+		return "••••"
+	}
+	return "••••" + token[len(token)-4:]
 }
 
 func (us *UserService) TokenInfoById(id uint) *model.UserToken {
@@ -560,6 +679,26 @@ func (us *UserService) AutoRefreshAccessToken(ut *model.UserToken) {
 
 func (us *UserService) BatchDeleteUserToken(ids []uint) error {
 	return DB.Where("id in ?", ids).Delete(&model.UserToken{}).Error
+}
+
+// TokenIdsOwnedBy reports whether every requested session belongs to the user.
+// It is used by the self-service session revocation endpoint to prevent IDOR.
+func (us *UserService) TokenIdsOwnedBy(ids []uint, userID uint) bool {
+	if userID == 0 || len(ids) == 0 {
+		return false
+	}
+	wanted := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		if id > 0 {
+			wanted[id] = struct{}{}
+		}
+	}
+	if len(wanted) == 0 {
+		return false
+	}
+	var owned []uint
+	DB.Model(&model.UserToken{}).Where("user_id = ? and id in ?", userID, ids).Pluck("id", &owned)
+	return len(owned) == len(wanted)
 }
 
 func (us *UserService) VerifyJWT(token string) (uint, error) {

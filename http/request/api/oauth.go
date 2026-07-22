@@ -12,3 +12,8 @@ type OidcAuthQuery struct {
 	Id   string `json:"id" form:"id" label:"id"`
 	Uuid string `json:"uuid" form:"uuid" label:"uuid"`
 }
+
+type MfaChallengeRequest struct {
+	Challenge string `json:"challenge" validate:"required,min=32,max=64" label:"MFA挑战"`
+	Code      string `json:"code" validate:"required,min=6,max=10" label:"MFA验证码或备份码"`
+}

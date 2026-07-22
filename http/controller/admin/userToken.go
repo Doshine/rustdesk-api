@@ -32,8 +32,15 @@ func (ct *UserToken) List(c *gin.Context) {
 		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError")+err.Error())
 		return
 	}
+	currentUser := service.AllService.UserService.CurUser(c)
+	if currentUser == nil {
+		response.Fail(c, 403, response.TranslateMsg(c, "NeedLogin"))
+		return
+	}
 	res := service.AllService.UserService.TokenList(query.Page, query.PageSize, func(tx *gorm.DB) {
-		if query.UserId > 0 {
+		if !service.AllService.UserService.IsAdmin(currentUser) {
+			tx.Where("user_id = ?", currentUser.Id)
+		} else if query.UserId > 0 {
 			tx.Where("user_id = ?", query.UserId)
 		}
 		tx.Order("id desc")
@@ -102,6 +109,15 @@ func (ct *UserToken) BatchDelete(c *gin.Context) {
 	ids := f.Ids
 	if len(ids) == 0 {
 		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError"))
+		return
+	}
+	currentUser := service.AllService.UserService.CurUser(c)
+	if currentUser == nil {
+		response.Fail(c, 403, response.TranslateMsg(c, "NeedLogin"))
+		return
+	}
+	if !service.AllService.UserService.IsAdmin(currentUser) && !service.AllService.UserService.TokenIdsOwnedBy(ids, currentUser.Id) {
+		response.Fail(c, 101, response.TranslateMsg(c, "NoAccess"))
 		return
 	}
 	err := service.AllService.UserService.BatchDeleteUserToken(ids)

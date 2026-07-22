@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"math/big"
 	"regexp"
+	"sync"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/lejianwen/rustdesk-api/v2/config"
 	"github.com/lejianwen/rustdesk-api/v2/lib/cache"
 	"github.com/lejianwen/rustdesk-api/v2/lib/sms"
@@ -29,6 +29,7 @@ var cnPhoneRegexp = regexp.MustCompile(`^1[3-9]\d{9}$`)
 type SmsService struct {
 	sender sms.Sender
 	cache  cache.Handler
+	mu     sync.Mutex
 }
 
 // NewSmsService 创建短信服务
@@ -42,10 +43,10 @@ func NewSmsService(sender sms.Sender, c cache.Handler) *SmsService {
 	}
 }
 
-// NewSmsServiceFromConfig 根据配置创建短信服务, sender 初始化失败时降级为mock
-func NewSmsServiceFromConfig(c *config.Config) *SmsService {
+// NewSmsServiceFromConfig 根据配置创建短信服务，生产 provider 初始化失败时直接返回错误。
+func NewSmsServiceFromConfig(c *config.Config, ca cache.Handler) (*SmsService, error) {
 	cfg := &c.Sms
-	sender := sms.NewSender(&sms.Config{
+	sender, err := sms.NewSender(&sms.Config{
 		Provider:        cfg.Provider,
 		AccessKeyId:     cfg.AccessKeyId,
 		AccessKeySecret: cfg.AccessKeySecret,
@@ -53,24 +54,33 @@ func NewSmsServiceFromConfig(c *config.Config) *SmsService {
 		TemplateCode:    cfg.TemplateCode,
 		Endpoint:        cfg.Endpoint,
 	}, Logger)
-	return NewSmsService(sender, newSmsCache(c))
+	if err != nil {
+		return nil, err
+	}
+	if ca == nil {
+		ca, err = newSmsCache(c)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return NewSmsService(sender, ca), nil
 }
 
 // newSmsCache 短信验证码缓存, 与 global.Cache 同样的配置来源, 缺省为内存缓存
-func newSmsCache(c *config.Config) cache.Handler {
+func newSmsCache(c *config.Config) (cache.Handler, error) {
 	switch c.Cache.Type {
 	case cache.TypeFile:
 		fc := cache.NewFileCache()
 		fc.SetDir(c.Cache.FileDir)
-		return fc
+		return fc, nil
 	case cache.TypeRedis:
-		return cache.NewRedis(&redis.Options{
-			Addr:     c.Cache.RedisAddr,
-			Password: c.Cache.RedisPwd,
-			DB:       c.Cache.RedisDb,
-		})
+		opts, err := c.Cache.RedisOptions()
+		if err != nil {
+			return nil, err
+		}
+		return cache.NewRedisWithPrefix(opts, c.Cache.RedisKeyPrefix), nil
 	default:
-		return cache.NewMemoryCache(0)
+		return cache.NewMemoryCache(0), nil
 	}
 }
 
@@ -88,12 +98,12 @@ func MaskCnPhone(phone string) string {
 }
 
 // generateSmsCode 生成6位数字验证码
-func generateSmsCode() string {
+func generateSmsCode() (string, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
 	if err != nil {
-		return fmt.Sprintf("%06d", time.Now().UnixNano()%1000000)
+		return "", err
 	}
-	return fmt.Sprintf("%06d", n.Int64())
+	return fmt.Sprintf("%06d", n.Int64()), nil
 }
 
 // codeExpireSeconds 验证码有效期(秒)
@@ -122,6 +132,32 @@ func (ss *SmsService) getCount(key string) int {
 	return count
 }
 
+func (ss *SmsService) increment(key string, expiration int) (int64, error) {
+	if atomicCache, ok := ss.cache.(cache.AtomicHandler); ok {
+		return atomicCache.Increment(key, expiration)
+	}
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	count := ss.getCount(key) + 1
+	if err := ss.cache.Set(key, count, expiration); err != nil {
+		return 0, err
+	}
+	return int64(count), nil
+}
+
+func (ss *SmsService) decrement(key string, expiration int) {
+	if atomicCache, ok := ss.cache.(cache.AtomicHandler); ok {
+		_ = atomicCache.Decrement(key)
+		return
+	}
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	count := ss.getCount(key)
+	if count > 0 {
+		_ = ss.cache.Set(key, count-1, expiration)
+	}
+}
+
 // SendLoginCode 发送登录验证码
 func (ss *SmsService) SendLoginCode(phone, ip string) error {
 	if !IsValidCnPhone(phone) {
@@ -129,18 +165,54 @@ func (ss *SmsService) SendLoginCode(phone, ip string) error {
 	}
 	//单手机号日限
 	dailyKey := ss.dailyLimitKey(phone)
-	if Config.Sms.DailyLimit > 0 && ss.getCount(dailyKey) >= Config.Sms.DailyLimit {
-		return errors.New("SmsDailyLimitExceeded")
+	now := time.Now()
+	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
+	dailyExpiration := int(endOfDay.Sub(now).Seconds()) + 1
+	ipKey := ss.ipLimitKey(ip)
+	dailyReserved := false
+	ipReserved := false
+	rollbackLimits := func() {
+		if dailyReserved {
+			ss.decrement(dailyKey, dailyExpiration)
+		}
+		if ipReserved {
+			ss.decrement(ipKey, 60)
+		}
+	}
+	if Config.Sms.DailyLimit > 0 {
+		count, err := ss.increment(dailyKey, dailyExpiration)
+		if err != nil {
+			return errors.New("SmsSendFailed")
+		}
+		dailyReserved = true
+		if count > int64(Config.Sms.DailyLimit) {
+			rollbackLimits()
+			return errors.New("SmsDailyLimitExceeded")
+		}
 	}
 	//单IP分钟限
-	ipKey := ss.ipLimitKey(ip)
-	if ip != "" && Config.Sms.PerIpLimit > 0 && ss.getCount(ipKey) >= Config.Sms.PerIpLimit {
-		return errors.New("SmsIpLimitExceeded")
+	if ip != "" && Config.Sms.PerIpLimit > 0 {
+		count, err := ss.increment(ipKey, 60)
+		if err != nil {
+			rollbackLimits()
+			return errors.New("SmsSendFailed")
+		}
+		ipReserved = true
+		if count > int64(Config.Sms.PerIpLimit) {
+			rollbackLimits()
+			return errors.New("SmsIpLimitExceeded")
+		}
 	}
 
-	code := generateSmsCode()
+	code, err := generateSmsCode()
+	if err != nil {
+		Logger.Error("secure SMS code generation failed: ", err)
+		rollbackLimits()
+		return errors.New("SmsSendFailed")
+	}
 	if err := ss.cache.Set(smsCodeKeyPrefix+phone, code, ss.codeExpireSeconds()); err != nil {
 		Logger.Warn("sms cache set code error: ", err)
+		rollbackLimits()
 		return errors.New("SmsSendFailed")
 	}
 
@@ -148,16 +220,10 @@ func (ss *SmsService) SendLoginCode(phone, ip string) error {
 		Logger.Warn("sms send code error: ", err)
 		//发送失败则作废已存验证码, 不消耗限流配额
 		_ = ss.cache.Set(smsCodeKeyPrefix+phone, "", 1)
+		rollbackLimits()
 		return errors.New("SmsSendFailed")
 	}
 
-	//发送成功后计数, 日限计数当日有效, IP限计数60秒有效
-	now := time.Now()
-	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
-	_ = ss.cache.Set(dailyKey, ss.getCount(dailyKey)+1, int(endOfDay.Sub(now).Seconds())+1)
-	if ip != "" {
-		_ = ss.cache.Set(ipKey, ss.getCount(ipKey)+1, 60)
-	}
 	return nil
 }
 
@@ -168,14 +234,23 @@ func (ss *SmsService) VerifyLoginCode(phone, code string) bool {
 	}
 	key := smsCodeKeyPrefix + phone
 	saved := ""
-	if err := ss.cache.Get(key, &saved); err != nil {
+	var err error
+	if atomicCache, ok := ss.cache.(cache.AtomicHandler); ok {
+		err = atomicCache.GetAndDelete(key, &saved)
+	} else {
+		ss.mu.Lock()
+		defer ss.mu.Unlock()
+		err = ss.cache.Get(key, &saved)
+		if err == nil {
+			_ = ss.cache.Set(key, "", 1)
+		}
+	}
+	if err != nil {
 		Logger.Warn("sms cache get code error: ", err)
 		return false
 	}
 	if saved == "" {
 		return false
 	}
-	//无论对错都作废
-	_ = ss.cache.Set(key, "", 1)
 	return saved == code
 }

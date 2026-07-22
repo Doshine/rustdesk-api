@@ -2,6 +2,8 @@ package orm
 
 import (
 	"fmt"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -10,12 +12,21 @@ import (
 
 type PostgresqlConfig struct {
 	Dsn          string
+	TimeZone     string
 	MaxIdleConns int
 	MaxOpenConns int
 }
 
-func NewPostgresql(conf *PostgresqlConfig, logwriter logger.Writer) *gorm.DB {
-	db, err := gorm.Open(postgres.Open(conf.Dsn), &gorm.Config{
+func NewPostgresql(conf *PostgresqlConfig, logwriter logger.Writer) (*gorm.DB, error) {
+	pgxConfig, err := pgx.ParseConfig(conf.Dsn)
+	if err != nil {
+		return nil, fmt.Errorf("parse PostgreSQL connection configuration: %w", err)
+	}
+	if conf.TimeZone != "" {
+		pgxConfig.RuntimeParams["timezone"] = conf.TimeZone
+	}
+	sqlDB := stdlib.OpenDB(*pgxConfig)
+	db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
 		Logger: logger.New(
 			logwriter, // io writer
@@ -29,17 +40,19 @@ func NewPostgresql(conf *PostgresqlConfig, logwriter logger.Writer) *gorm.DB {
 		),
 	})
 	if err != nil {
-		fmt.Println(err)
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("open PostgreSQL connection: %w", err)
 	}
-	sqlDB, err2 := db.DB()
-	if err2 != nil {
-		fmt.Println(err2)
+	gormSQLDB, err := db.DB()
+	if err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("get PostgreSQL connection pool: %w", err)
 	}
 	// SetMaxIdleConns 设置空闲连接池中连接的最大数量
-	sqlDB.SetMaxIdleConns(conf.MaxIdleConns)
+	gormSQLDB.SetMaxIdleConns(conf.MaxIdleConns)
 
 	// SetMaxOpenConns 设置打开数据库连接的最大数量。
-	sqlDB.SetMaxOpenConns(conf.MaxOpenConns)
+	gormSQLDB.SetMaxOpenConns(conf.MaxOpenConns)
 
-	return db
+	return db, nil
 }

@@ -6,8 +6,40 @@ import {initZstd, translate} from "./common";
 import PCMPlayer from "pcm-player";
 import {getServerConf} from "./ljw";
 
+const SENSITIVE_STORAGE_KEYS = new Set(['access_token', 'wc-option:local:access_token']);
+const SENSITIVE_PEER_KEYS = new Set(['password', 'os-password', 'tmppwd', 'remember']);
+
+for (const key of SENSITIVE_STORAGE_KEYS) localStorage.removeItem(key);
+
+function sanitizePeerOptions(options) {
+    const sanitized = {...(options || {})};
+    for (const key of SENSITIVE_PEER_KEYS) delete sanitized[key];
+    if (sanitized.info) {
+        sanitized.info = {...sanitized.info};
+        delete sanitized.info.hash;
+    }
+    return sanitized;
+}
+
+function persistentPeers() {
+    let peers = {};
+    try {
+        peers = JSON.parse(localStorage.getItem('peers')) || {};
+    } catch (_) {
+        peers = {};
+    }
+    const sanitized = Object.fromEntries(
+        Object.entries(peers).map(([id, options]) => [id, sanitizePeerOptions(options)])
+    );
+    localStorage.setItem('peers', JSON.stringify(sanitized));
+    return sanitized;
+}
+
 window.myconsole = (...args) => {
-    console.log(args);
+    // The Web Client receives passwords and peer options through this bridge.
+    // Never mirror bridge arguments into a browser console that extensions or
+    // injected scripts can collect. Enable structured, redacted diagnostics
+    // only in a separately built development bundle.
 }
 window.curConn = undefined;
 window.isMobile = () => {
@@ -260,9 +292,17 @@ window.setByName = (name, value) => {
             break;
         case 'option':
             value = JSON.parse(value);
-            localStorage.setItem(value.name, value.value);
-            if (value.name === 'access_token' && value.value) {
-                getServerConf(value.value);
+            if (value.name === 'access_token') {
+                localStorage.removeItem(value.name);
+                localStorage.removeItem('wc-option:local:access_token');
+                if (value.value) {
+                    sessionStorage.setItem(value.name, value.value);
+                    getServerConf(value.value);
+                } else {
+                    sessionStorage.removeItem(value.name);
+                }
+            } else {
+                localStorage.setItem(value.name, value.value);
             }
             break;
         case 'peer_option':
@@ -308,7 +348,7 @@ function _getByName(name, arg) {
         case 'toggle_option':
             return curConn.getOption(arg) || false;
         case 'option':
-            const v = localStorage.getItem(arg);
+            const v = arg === 'access_token' ? sessionStorage.getItem(arg) : localStorage.getItem(arg);
             if (arg === 'access_token' && v) {
                 getServerConf(v);
             }
@@ -356,11 +396,18 @@ window.init = async () => {
 }
 
 export function getPeers() {
-    try {
-        return JSON.parse(localStorage.getItem('peers')) || {};
-    } catch (e) {
-        return {};
+    const peers = persistentPeers();
+    const sessionPeers = window._gwen?.sessionPeers || {};
+    for (const [id, options] of Object.entries(sessionPeers)) {
+        peers[id] = {...(peers[id] || {}), ...options};
     }
+    return peers;
+}
+
+export function persistPeerOptions(id, options) {
+    const peers = persistentPeers();
+    peers[id] = sanitizePeerOptions(options);
+    localStorage.setItem('peers', JSON.stringify(peers));
 }
 
 function newAudioPlayer(channels, sampleRate) {

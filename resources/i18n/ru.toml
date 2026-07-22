@@ -153,6 +153,51 @@ description = "Password login disabled."
 one = "Вход по паролю отключен."
 other = "Вход по паролю отключен."
 
+[MfaCodeError]
+description = "MFA code error."
+one = "Неверный код MFA."
+other = "Неверный код MFA."
+
+[MfaEnrollmentRequired]
+description = "MFA enrollment required."
+one = "Администраторы должны зарегистрировать MFA."
+other = "Администраторы должны зарегистрировать MFA."
+
+[MfaAlreadyEnabled]
+description = "MFA already enabled."
+one = "MFA уже включена."
+other = "MFA уже включена."
+
+[MfaNotEnrolled]
+description = "MFA not enrolled."
+one = "MFA не зарегистрирована."
+other = "MFA не зарегистрирована."
+
+[MfaDisabled]
+description = "MFA disabled."
+one = "MFA отключена."
+other = "MFA отключена."
+
+[MfaStepUpError]
+description = "MFA step-up verification failed."
+one = "Текущий пароль или код MFA неверен; отключить MFA невозможно."
+other = "Текущий пароль или код MFA неверен; отключить MFA невозможно."
+
+[MfaChallengeExpired]
+description = "MFA challenge expired."
+one = "Срок действия MFA-проверки истек. Начните сторонний вход заново."
+other = "Срок действия MFA-проверки истек. Начните сторонний вход заново."
+
+[MfaChallengeCodeError]
+description = "MFA challenge code error."
+one = "Код MFA неверен. Повторите попытку."
+other = "Код MFA неверен. Повторите попытку."
+
+[MfaEnrollmentChallengeExpired]
+description = "MFA enrollment challenge expired."
+one = "Срок действия регистрации MFA истек. Войдите снова, чтобы начать настройку."
+other = "Срок действия регистрации MFA истек. Войдите снова, чтобы начать настройку."
+
 [CannotShareToSelf]
 description = "Cannot share to self."
 one = "Нельзя поделиться с собой."
@@ -167,3 +212,24 @@ other = "Заблокировано."
 description = "Register success wait admin confirm."
 one = "Регистрация прошла успешно, ожидайте подтверждения администратора."
 other = "Регистрация прошла успешно, ожидайте подтверждения администратора."
+
+[PasskeyDisabled]
+description = "Passkey disabled."
+one = "Вход с passkey не включён на этом сервере."
+other = "Вход с passkey не включён на этом сервере."
+[PasskeyChallengeExpired]
+description = "Passkey ceremony expired."
+one = "Срок действия passkey-церемонии истёк. Начните снова."
+other = "Срок действия passkey-церемонии истёк. Начните снова."
+[PasskeyCredentialInvalid]
+description = "Invalid passkey credential."
+one = "Ответ passkey не удалось проверить."
+other = "Ответ passkey не удалось проверить."
+[PasskeyCredentialRevoked]
+description = "Passkey credential revoked."
+one = "Этот passkey отозван."
+other = "Этот passkey отозван."
+[PasskeyCredentialExists]
+description = "Passkey credential already exists."
+one = "Этот passkey уже зарегистрирован."
+other = "Этот passkey уже зарегистрирован."

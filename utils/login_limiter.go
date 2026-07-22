@@ -206,7 +206,7 @@ func (ll *LoginLimiter) CheckSecurityStatus(ip string) (banned bool, captchaRequ
 	ll.pruneAttempts(ip, time.Now().Add(-ll.policy.AttemptsWindow))
 
 	// 检查验证码要求
-	captchaRequired = len(ll.attempts[ip]) >= ll.policy.CaptchaThreshold
+	captchaRequired = ll.policy.CaptchaThreshold >= 0 && len(ll.attempts[ip]) >= ll.policy.CaptchaThreshold
 
 	return
 }

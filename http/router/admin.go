@@ -7,6 +7,7 @@ import (
 	"github.com/lejianwen/rustdesk-api/v2/http/controller/admin"
 	"github.com/lejianwen/rustdesk-api/v2/http/controller/admin/my"
 	"github.com/lejianwen/rustdesk-api/v2/http/middleware"
+	"github.com/lejianwen/rustdesk-api/v2/model"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -51,8 +52,20 @@ func Init(g *gin.Engine) {
 	RustdeskCmdBind(adg)
 	DeviceGroupBind(adg)
 	RelayNodeBind(adg)
+	PasskeyBind(adg)
+	DeploymentCodeBind(adg)
 	//访问静态文件
 	//g.StaticFS("/upload", http.Dir(global.Config.Gin.ResourcesPath+"/upload"))
+}
+
+func DeploymentCodeBind(rg *gin.RouterGroup) {
+	cont := &admin.DeploymentCode{}
+	routes := rg.Group("/deployment_code").Use(middleware.PermissionPrivilege(model.PermissionDeviceManage))
+	routes.GET("/list", cont.List)
+	routes.POST("/create", cont.Create)
+	routes.POST("/revoke", cont.Revoke)
+	routes.POST("/rotate", cont.Rotate)
+	routes.GET("/audit", cont.Audit)
 }
 
 func RustdeskCmdBind(adg *gin.RouterGroup) {
@@ -73,6 +86,13 @@ func LoginBind(rg *gin.RouterGroup) {
 	rg.GET("/login-options", cont.LoginOptions)
 	rg.POST("/oidc/auth", cont.OidcAuth)
 	rg.GET("/oidc/auth-query", cont.OidcAuthQuery)
+	rg.POST("/oidc/mfa/verify", cont.OidcMfaVerify)
+	mfa := &admin.Mfa{}
+	rg.POST("/mfa/bootstrap/begin", mfa.BootstrapBegin)
+	rg.POST("/mfa/bootstrap/complete", mfa.BootstrapComplete)
+	passkey := &admin.Passkey{}
+	rg.POST("/passkeys/login/begin", passkey.LoginBegin)
+	rg.POST("/passkeys/login/complete", passkey.LoginComplete)
 }
 
 func UserBind(rg *gin.RouterGroup) {
@@ -82,6 +102,15 @@ func UserBind(rg *gin.RouterGroup) {
 		aR.GET("/current", cont.Current)
 		aR.POST("/changeCurPwd", cont.ChangeCurPwd)
 		aR.POST("/myOauth", cont.MyOauth)
+		mfa := &admin.Mfa{}
+		aR.POST("/mfa/enroll", mfa.Enroll)
+		aR.POST("/mfa/enable", mfa.Enable)
+		aR.POST("/mfa/disable", mfa.Disable)
+		passkey := &admin.Passkey{}
+		aR.POST("/passkeys/register/begin", passkey.RegisterBegin)
+		aR.POST("/passkeys/register/complete", passkey.RegisterComplete)
+		aR.GET("/passkeys", passkey.List)
+		aR.DELETE("/passkeys/:id", passkey.Revoke)
 		//aR.GET("/myPeer", cont.MyPeer)
 		aR.POST("/groupUsers", cont.GroupUsers)
 	}
@@ -95,6 +124,13 @@ func UserBind(rg *gin.RouterGroup) {
 		aRP.POST("/delete", cont.Delete)
 		aRP.POST("/changePwd", cont.UpdatePassword)
 	}
+}
+
+func PasskeyBind(rg *gin.RouterGroup) {
+	cont := &admin.Passkey{}
+	adminRoutes := rg.Group("/passkeys").Use(middleware.AdminPrivilege())
+	adminRoutes.GET("/user/:userId", cont.ListUser)
+	adminRoutes.DELETE("/user/:userId/:id", cont.RevokeUser)
 }
 
 func GroupBind(rg *gin.RouterGroup) {
@@ -200,11 +236,11 @@ func LoginLogBind(rg *gin.RouterGroup) {
 }
 func AuditBind(rg *gin.RouterGroup) {
 	cont := &admin.Audit{}
-	aR := rg.Group("/audit_conn").Use(middleware.AdminPrivilege())
+	aR := rg.Group("/audit_conn").Use(middleware.AuditReadPrivilege())
 	aR.GET("/list", cont.ConnList)
 	aR.POST("/delete", cont.ConnDelete)
 	aR.POST("/batchDelete", cont.BatchConnDelete)
-	afR := rg.Group("/audit_file").Use(middleware.AdminPrivilege())
+	afR := rg.Group("/audit_file").Use(middleware.AuditReadPrivilege())
 	afR.GET("/list", cont.FileList)
 	afR.POST("/delete", cont.FileDelete)
 	afR.POST("/batchDelete", cont.BatchFileDelete)
@@ -233,7 +269,9 @@ func AddressBookCollectionRuleBind(rg *gin.RouterGroup) {
 	}
 }
 func UserTokenBind(rg *gin.RouterGroup) {
-	aR := rg.Group("/user_token").Use(middleware.AdminPrivilege())
+	// Session inventory and revocation are self-service capabilities; the
+	// controller scopes non-admin users to their own token records.
+	aR := rg.Group("/user_token").Use(middleware.BackendUserAuth())
 	cont := &admin.UserToken{}
 	aR.GET("/list", cont.List)
 	aR.POST("/delete", cont.Delete)

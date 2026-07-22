@@ -85,6 +85,24 @@ func (ct *Login) Login(c *gin.Context) {
 		response.Fail(c, 101, response.TranslateMsg(c, "UserDisabled"))
 		return
 	}
+	if err := service.AllService.MfaService.VerifyLogin(u, f.MfaCode); err != nil {
+		if err == service.ErrMfaRequired {
+			challenge, challengeErr := service.AllService.MfaService.CreateEnrollmentChallenge(u, &service.MfaEnrollmentChallengeItem{
+				DeviceOs:   f.Platform,
+				DeviceType: model.LoginLogClientWebAdmin,
+				LoginType:  model.LoginLogTypeAccount,
+			})
+			if challengeErr != nil {
+				response.Fail(c, 101, response.TranslateMsg(c, challengeErr.Error()))
+				return
+			}
+			response.Success(c, gin.H{"mfa_enrollment_required": true, "mfa_enrollment_challenge": challenge})
+			return
+		}
+		loginLimiter.RecordFailedAttempt(clientIp)
+		response.Fail(c, 101, response.TranslateMsg(c, err.Error()))
+		return
+	}
 
 	ut := service.AllService.UserService.Login(u, &model.LoginLog{
 		UserId:   u.Id,
@@ -99,6 +117,7 @@ func (ct *Login) Login(c *gin.Context) {
 	loginLimiter.RemoveAttempts(clientIp)
 	responseLoginSuccess(c, u, ut.Token)
 }
+
 // SmsCode 发送短信验证码
 // @Tags 登录
 // @Summary 发送短信验证码
@@ -211,6 +230,24 @@ func (ct *Login) LoginSms(c *gin.Context) {
 		response.Fail(c, 101, response.TranslateMsg(c, "UserDisabled"))
 		return
 	}
+	if err := service.AllService.MfaService.VerifyLogin(u, f.MfaCode); err != nil {
+		if err == service.ErrMfaRequired {
+			challenge, challengeErr := service.AllService.MfaService.CreateEnrollmentChallenge(u, &service.MfaEnrollmentChallengeItem{
+				DeviceOs:   f.Platform,
+				DeviceType: model.LoginLogClientWebAdmin,
+				LoginType:  model.LoginLogTypeSms,
+			})
+			if challengeErr != nil {
+				response.Fail(c, 101, response.TranslateMsg(c, challengeErr.Error()))
+				return
+			}
+			response.Success(c, gin.H{"mfa_enrollment_required": true, "mfa_enrollment_challenge": challenge})
+			return
+		}
+		loginLimiter.RecordFailedAttempt(clientIp)
+		response.Fail(c, 101, response.TranslateMsg(c, err.Error()))
+		return
+	}
 
 	ut := service.AllService.UserService.Login(u, &model.LoginLog{
 		UserId:   u.Id,
@@ -293,11 +330,12 @@ func (ct *Login) LoginOptions(c *gin.Context) {
 	}
 	ops := service.AllService.OauthService.GetOauthProviders()
 	response.Success(c, gin.H{
-		"ops":          ops,
-		"register":     global.Config.App.Register,
-		"need_captcha": needCaptcha,
-		"disable_pwd":  global.Config.App.DisablePwdLogin,
-		"auto_oidc":    global.Config.App.DisablePwdLogin && len(ops) == 1,
+		"ops":             ops,
+		"register":        global.Config.App.Register,
+		"need_captcha":    needCaptcha,
+		"disable_pwd":     global.Config.App.DisablePwdLogin,
+		"auto_oidc":       global.Config.App.DisablePwdLogin && len(ops) == 1,
+		"passkey_enabled": global.Config.Passkey.Enabled,
 	})
 }
 
@@ -353,8 +391,34 @@ func (ct *Login) OidcAuth(c *gin.Context) {
 // @Router /admin/oidc/auth-query [get]
 func (ct *Login) OidcAuthQuery(c *gin.Context) {
 	o := &api.Oauth{}
-	u, ut := o.OidcAuthQueryPre(c)
+	u, ut, challenge, enrollment := o.OidcAuthQueryPre(c)
+	if challenge != "" {
+		if enrollment {
+			response.Success(c, gin.H{"mfa_enrollment_required": true, "mfa_enrollment_challenge": challenge})
+			return
+		}
+		response.Success(c, gin.H{"mfa_required": true, "mfa_challenge": challenge})
+		return
+	}
 	if ut == nil {
+		return
+	}
+	responseLoginSuccess(c, u, ut.Token)
+}
+
+func (ct *Login) OidcMfaVerify(c *gin.Context) {
+	f := &apiReq.MfaChallengeRequest{}
+	if err := c.ShouldBindJSON(f); err != nil {
+		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError"))
+		return
+	}
+	if errList := global.Validator.ValidStruct(c, f); len(errList) > 0 {
+		response.Fail(c, 101, errList[0])
+		return
+	}
+	u, ut, err := service.AllService.MfaService.CompleteOauthChallenge(f.Challenge, f.Code, c.ClientIP())
+	if err != nil {
+		response.Fail(c, 101, response.TranslateMsg(c, err.Error()))
 		return
 	}
 	responseLoginSuccess(c, u, ut.Token)

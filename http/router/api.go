@@ -38,6 +38,9 @@ func ApiInit(g *gin.Engine) {
 		frg.POST("/login", l.Login)
 		frg.POST("/sms-code", l.SmsCode)
 		frg.POST("/login-sms", l.LoginSms)
+		passkey := &api.Passkey{}
+		frg.POST("/passkeys/login/begin", passkey.LoginBegin)
+		frg.POST("/passkeys/login/complete", passkey.LoginComplete)
 
 	}
 
@@ -47,6 +50,10 @@ func ApiInit(g *gin.Engine) {
 		frg.POST("/oidc/auth", o.OidcAuth)
 		// [method:GET] [uri:/api/oidc/auth-query?code=abc&id=xxxxx&uuid=xxxxx]
 		frg.GET("/oidc/auth-query", o.OidcAuthQuery)
+		frg.POST("/oidc/mfa/verify", o.MfaVerify)
+		mfa := &api.Mfa{}
+		frg.POST("/mfa/bootstrap/begin", mfa.BootstrapBegin)
+		frg.POST("/mfa/bootstrap/complete", mfa.BootstrapComplete)
 		//api/oauth/callback
 		frg.GET("/oauth/callback", o.OauthCallback)
 		frg.GET("/oauth/login", o.OauthCallback)
@@ -61,6 +68,10 @@ func ApiInit(g *gin.Engine) {
 		//提交系统信息
 		frg.POST("/sysinfo", pe.SysInfo)
 		frg.POST("/sysinfo_ver", pe.SysInfoVer)
+	}
+	{
+		deployment := &api.DeploymentCode{}
+		frg.POST("/deployment/claim", deployment.Claim)
 	}
 
 	if global.Config.App.WebClient == 1 {
@@ -80,6 +91,17 @@ func ApiInit(g *gin.Engine) {
 		u := &api.User{}
 		frg.GET("/user/info", u.Info)
 		frg.POST("/currentUser", u.Info)
+	}
+	{
+		mfa := &api.Mfa{}
+		frg.POST("/user/mfa/enroll", mfa.Enroll)
+		frg.POST("/user/mfa/enable", mfa.Enable)
+		frg.POST("/user/mfa/disable", mfa.Disable)
+		passkey := &api.Passkey{}
+		frg.POST("/user/passkeys/register/begin", passkey.RegisterBegin)
+		frg.POST("/user/passkeys/register/complete", passkey.RegisterComplete)
+		frg.GET("/user/passkeys", passkey.List)
+		frg.DELETE("/user/passkeys/:id", passkey.Revoke)
 	}
 	{
 		l := &api.Login{}

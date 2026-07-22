@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/lejianwen/rustdesk-api/v2/global"
 	"github.com/lejianwen/rustdesk-api/v2/http/response"
 	"github.com/lejianwen/rustdesk-api/v2/service"
 )
@@ -17,11 +18,29 @@ func BackendUserAuth() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		// api-token is also a JWT. Checking it here prevents the database-side
+		// sliding refresh from extending an already expired bearer credential.
+		if global.Jwt != nil && len(global.Jwt.Key) > 0 {
+			uid, err := service.AllService.UserService.VerifyJWT(token)
+			if err != nil || uid == 0 {
+				response.Fail(c, 403, response.TranslateMsg(c, "NeedLogin"))
+				c.Abort()
+				return
+			}
+		}
 		user, ut := service.AllService.UserService.InfoByAccessToken(token)
 		if user.Id == 0 {
 			response.Fail(c, 403, response.TranslateMsg(c, "NeedLogin"))
 			c.Abort()
 			return
+		}
+		if global.Jwt != nil && len(global.Jwt.Key) > 0 {
+			uid, _ := service.AllService.UserService.VerifyJWT(token)
+			if uid != user.Id {
+				response.Fail(c, 403, response.TranslateMsg(c, "NeedLogin"))
+				c.Abort()
+				return
+			}
 		}
 
 		if !service.AllService.UserService.CheckUserEnable(user) {

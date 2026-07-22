@@ -81,6 +81,14 @@ func (c *FileCache) Set(key string, value interface{}, exp int) error {
 	return err
 }
 
+func (c *FileCache) Delete(key string) error {
+	err := os.Remove(c.fileName(key))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
+}
+
 func (c *FileCache) SetDir(path string) {
 	c.Dir = path
 }
