@@ -6,9 +6,11 @@ app:
   captcha-threshold: 3 #   <0:disabled, 0 always, >0:enabled
   ban-threshold: 0 # 0:disabled, >0:enabled
   show-swagger: 0 # 1:启用 0:禁用
-  token-expire: 168h
+  token-expire: 24h
   web-sso: true #web auth sso
   disable-pwd-login: false #禁用密码登录
+  # 仅允许本地开发临时开启；生产环境必须保持 false，安全配置缺失时进程拒绝启动。
+  allow-insecure-development: false
 
 admin:
   title: "蓝鲸银河 · 管理后台"
@@ -26,6 +28,9 @@ gorm:
   type: "sqlite"
   max-idle-conns: 10
   max-open-conns: 100
+  # 商用环境必须保持 false，并在启动应用前运行经审核的显式迁移。
+  # 仅本地临时数据库可显式改为 true 使用 GORM AutoMigrate。
+  auto-migrate: false
 mysql:
   username: ""
   password: ""
@@ -39,8 +44,12 @@ postgresql:
   user: ""
   password: ""
   dbname: "postgres"
-  sslmode: "disable" # disable, require, verify-ca, verify-full
+  sslmode: "verify-full" # disable, require, verify-ca, verify-full
+  ssl-root-cert: "" # 可选：Supabase Dashboard 下载的数据库 CA PEM 路径
   time-zone: "Asia/Shanghai" # Time zone for PostgreSQL connection
+  schema: "yinhe_app" # 私有应用 schema；禁止使用 Supabase Data API 暴露 schema
+  pool-mode: "direct" # direct / session；禁止 transaction pooler
+  jit-access: false # 仅限 Supabase 短期令牌；令牌只能通过环境变量/密钥管理注入
 
 rustdesk:
   id-server: "192.168.1.66:21116"
@@ -59,10 +68,21 @@ proxy:
   enable: false
   host: "http://127.0.0.1:1080"
 jwt:
-  key: ""
-  expire-duration: 168h
+  key: "" # 生产环境通过 RUSTDESK_API_JWT_KEY 注入，至少32字符
+  expire-duration: 24h
+mfa:
+  enabled: false # 开启后允许用户绑定 TOTP；生产环境必须注入独立 encryption-key 或使用强 JWT key
+  issuer: "蓝鲸银河"
+  encryption-key: ""
+  required-for-admin: false # 完成受控内测后再开启管理员强制 MFA
+passkey:
+  enabled: false # 原生 Passkey/WebAuthn；开启前必须配置稳定的 RP ID 与 HTTPS origin
+  rp-id: ""
+  rp-display-name: "蓝鲸银河"
+  origins: []
+  require-user-verification: true
 sms:
-  provider: "mock" # mock: 仅打印验证码到日志(开发联调用) / aliyun: 阿里云短信
+  provider: "aliyun" # mock 仅可在 allow-insecure-development=true 时使用
   code-expire-seconds: 300 # 验证码有效期(秒)
   daily-limit: 10 # 单手机号每日发送上限, <=0不限制
   per-ip-limit: 5 # 单IP每分钟发送上限, <=0不限制
@@ -77,10 +97,11 @@ ldap:
   enable: false
   url: "ldap://ldap.example.com:389"
   tls-ca-file: ""
-  tls-verify: false
+  tls-verify: true
   base-dn: "dc=example,dc=com"
   bind-dn: "cn=admin,dc=example,dc=com"
-  bind-password: "password"
+  bind-password: ""
+  allow-local-fallback: false
 
   user:
     base-dn: "ou=users,dc=example,dc=com"
@@ -94,3 +115,14 @@ ldap:
     sync: false         # If true, the user will be synchronized to the database when the user logs in. If false, the user will be synchronized to the database when the user be created.
     admin-group: "cn=admin,dc=example,dc=com" # The group name of the admin group, if the user is in this group, the user will be an admin.
     allow-group: "cn=users,dc=example,dc=com" # The group name of the users group, if the user is in this group, the user will be an login. 
+
+cache:
+  type: "redis"
+  redis-addr: "127.0.0.1:6379"
+  redis-username: "" # 生产必须使用专用 ACL 用户
+  redis-pwd: "" # 推荐通过 RUSTDESK_API_CACHE_REDIS_PWD_FILE 挂载密钥
+  redis-db: 0 # 固定 DB 0；使用 key-prefix + ACL pattern 隔离，兼容 Redis Cluster
+  redis-tls: true # 生产不可关闭；证书始终校验，不提供 skip-verify
+  redis-tls-ca-file: "" # 私有 CA 时填写挂载路径；公有 CA 可使用系统信任库
+  redis-tls-server-name: "" # 默认从 redis-addr 推导
+  redis-key-prefix: "yinhe:prod:" # ACL key pattern 应与该前缀匹配

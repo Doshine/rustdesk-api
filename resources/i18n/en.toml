@@ -144,6 +144,51 @@ description = "Password login disabled."
 one = "Password login disabled."
 other = "Password login disabled."
 
+[MfaCodeError]
+description = "MFA code error."
+one = "Invalid MFA code."
+other = "Invalid MFA code."
+
+[MfaEnrollmentRequired]
+description = "MFA enrollment required."
+one = "Administrators must enroll MFA before signing in."
+other = "Administrators must enroll MFA before signing in."
+
+[MfaAlreadyEnabled]
+description = "MFA already enabled."
+one = "MFA is already enabled."
+other = "MFA is already enabled."
+
+[MfaNotEnrolled]
+description = "MFA not enrolled."
+one = "MFA is not enrolled."
+other = "MFA is not enrolled."
+
+[MfaDisabled]
+description = "MFA disabled."
+one = "MFA is disabled."
+other = "MFA is disabled."
+
+[MfaStepUpError]
+description = "MFA step-up verification failed."
+one = "The current password or MFA code is invalid; MFA cannot be disabled."
+other = "The current password or MFA code is invalid; MFA cannot be disabled."
+
+[MfaChallengeExpired]
+description = "MFA challenge expired."
+one = "The MFA sign-in challenge expired. Start the third-party sign-in again."
+other = "The MFA sign-in challenge expired. Start the third-party sign-in again."
+
+[MfaChallengeCodeError]
+description = "MFA challenge code error."
+one = "The MFA code is invalid. Try again."
+other = "The MFA code is invalid. Try again."
+
+[MfaEnrollmentChallengeExpired]
+description = "MFA enrollment challenge expired."
+one = "The MFA enrollment challenge expired. Sign in again to restart setup."
+other = "The MFA enrollment challenge expired. Sign in again to restart setup."
+
 [CannotShareToSelf]
 description = "Cannot share to self."
 one = "Cannot share to self."
@@ -193,3 +238,24 @@ other = "Sending too frequently, please try again later."
 description = "Sms send failed."
 one = "Failed to send SMS."
 other = "Failed to send SMS."
+
+[PasskeyDisabled]
+description = "Passkey disabled."
+one = "Passkey sign-in is not enabled on this server."
+other = "Passkey sign-in is not enabled on this server."
+[PasskeyChallengeExpired]
+description = "Passkey ceremony expired."
+one = "The passkey ceremony expired. Start again."
+other = "The passkey ceremony expired. Start again."
+[PasskeyCredentialInvalid]
+description = "Invalid passkey credential."
+one = "The passkey response could not be verified."
+other = "The passkey response could not be verified."
+[PasskeyCredentialRevoked]
+description = "Passkey credential revoked."
+one = "This passkey has been revoked."
+other = "This passkey has been revoked."
+[PasskeyCredentialExists]
+description = "Passkey credential already exists."
+one = "This passkey is already registered."
+other = "This passkey is already registered."

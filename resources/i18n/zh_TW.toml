@@ -153,6 +153,51 @@ description = "Password login disabled."
 one = "密碼登入已停用。"
 other = "密碼登入已停用。"
 
+[MfaCodeError]
+description = "MFA code error."
+one = "MFA 驗證碼錯誤。"
+other = "MFA 驗證碼錯誤。"
+
+[MfaEnrollmentRequired]
+description = "MFA enrollment required."
+one = "管理員必須先完成 MFA 綁定。"
+other = "管理員必須先完成 MFA 綁定。"
+
+[MfaAlreadyEnabled]
+description = "MFA already enabled."
+one = "MFA 已啟用。"
+other = "MFA 已啟用。"
+
+[MfaNotEnrolled]
+description = "MFA not enrolled."
+one = "尚未完成 MFA 綁定。"
+other = "尚未完成 MFA 綁定。"
+
+[MfaDisabled]
+description = "MFA disabled."
+one = "MFA 功能未啟用。"
+other = "MFA 功能未啟用。"
+
+[MfaStepUpError]
+description = "MFA step-up verification failed."
+one = "目前密碼或 MFA 驗證碼錯誤，無法關閉 MFA。"
+other = "目前密碼或 MFA 驗證碼錯誤，無法關閉 MFA。"
+
+[MfaChallengeExpired]
+description = "MFA challenge expired."
+one = "MFA 登入挑戰已過期，請重新發起第三方登入。"
+other = "MFA 登入挑戰已過期，請重新發起第三方登入。"
+
+[MfaChallengeCodeError]
+description = "MFA challenge code error."
+one = "MFA 驗證碼錯誤，請重試。"
+other = "MFA 驗證碼錯誤，請重試。"
+
+[MfaEnrollmentChallengeExpired]
+description = "MFA enrollment challenge expired."
+one = "首次 MFA 註冊挑戰已過期，請重新登入。"
+other = "首次 MFA 註冊挑戰已過期，請重新登入。"
+
 [CannotShareToSelf]
 description = "Cannot share to self."
 one = "無法分享給自己。"
@@ -167,3 +212,24 @@ other = "已被禁用。"
 description = "Register success, wait admin confirm."
 one = "註冊成功，等待管理員確認。"
 other = "註冊成功，等待管理員確認。"
+
+[PasskeyDisabled]
+description = "Passkey disabled."
+one = "伺服器尚未啟用 Passkey 登入。"
+other = "伺服器尚未啟用 Passkey 登入。"
+[PasskeyChallengeExpired]
+description = "Passkey ceremony expired."
+one = "Passkey 驗證流程已過期，請重新開始。"
+other = "Passkey 驗證流程已過期，請重新開始。"
+[PasskeyCredentialInvalid]
+description = "Invalid passkey credential."
+one = "無法驗證 Passkey 回應。"
+other = "無法驗證 Passkey 回應。"
+[PasskeyCredentialRevoked]
+description = "Passkey credential revoked."
+one = "此 Passkey 已撤銷。"
+other = "此 Passkey 已撤銷。"
+[PasskeyCredentialExists]
+description = "Passkey credential already exists."
+one = "此 Passkey 已註冊。"
+other = "此 Passkey 已註冊。"

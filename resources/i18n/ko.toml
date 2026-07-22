@@ -147,6 +147,51 @@ description = "Password login disabled."
 one = "비밀번호 로그인이 비활성화되었습니다."
 other = "비밀번호 로그인이 비활성화되었습니다."
 
+[MfaCodeError]
+description = "MFA code error."
+one = "MFA 코드가 올바르지 않습니다."
+other = "MFA 코드가 올바르지 않습니다."
+
+[MfaEnrollmentRequired]
+description = "MFA enrollment required."
+one = "관리자는 MFA를 등록해야 합니다."
+other = "관리자는 MFA를 등록해야 합니다."
+
+[MfaAlreadyEnabled]
+description = "MFA already enabled."
+one = "MFA가 이미 활성화되어 있습니다."
+other = "MFA가 이미 활성화되어 있습니다."
+
+[MfaNotEnrolled]
+description = "MFA not enrolled."
+one = "MFA가 등록되지 않았습니다."
+other = "MFA가 등록되지 않았습니다."
+
+[MfaDisabled]
+description = "MFA disabled."
+one = "MFA가 비활성화되어 있습니다."
+other = "MFA가 비활성화되어 있습니다."
+
+[MfaStepUpError]
+description = "MFA step-up verification failed."
+one = "현재 비밀번호 또는 MFA 코드가 올바르지 않아 MFA를 끌 수 없습니다."
+other = "현재 비밀번호 또는 MFA 코드가 올바르지 않아 MFA를 끌 수 없습니다."
+
+[MfaChallengeExpired]
+description = "MFA challenge expired."
+one = "MFA 로그인 인증이 만료되었습니다. 외부 로그인을 다시 시작하세요."
+other = "MFA 로그인 인증이 만료되었습니다. 외부 로그인을 다시 시작하세요."
+
+[MfaChallengeCodeError]
+description = "MFA challenge code error."
+one = "MFA 코드가 올바르지 않습니다. 다시 시도하세요."
+other = "MFA 코드가 올바르지 않습니다. 다시 시도하세요."
+
+[MfaEnrollmentChallengeExpired]
+description = "MFA enrollment challenge expired."
+one = "MFA 등록 인증이 만료되었습니다. 다시 로그인하여 설정을 시작하세요."
+other = "MFA 등록 인증이 만료되었습니다. 다시 로그인하여 설정을 시작하세요."
+
 [CannotShareToSelf]
 description = "Cannot share to self."
 one = "자기 자신에게 공유할 수 없습니다."
@@ -161,3 +206,24 @@ other = "금지됨."
 description = "Register success wait admin confirm."
 one = "가입 성공, 관리자 확인 대기 중."
 other = "가입 성공, 관리자 확인 대기 중."
+
+[PasskeyDisabled]
+description = "Passkey disabled."
+one = "이 서버에서는 Passkey 로그인이 활성화되지 않았습니다."
+other = "이 서버에서는 Passkey 로그인이 활성화되지 않았습니다."
+[PasskeyChallengeExpired]
+description = "Passkey ceremony expired."
+one = "Passkey 인증이 만료되었습니다. 다시 시작하세요."
+other = "Passkey 인증이 만료되었습니다. 다시 시작하세요."
+[PasskeyCredentialInvalid]
+description = "Invalid passkey credential."
+one = "Passkey 응답을 확인할 수 없습니다."
+other = "Passkey 응답을 확인할 수 없습니다."
+[PasskeyCredentialRevoked]
+description = "Passkey credential revoked."
+one = "이 Passkey는 취소되었습니다."
+other = "이 Passkey는 취소되었습니다."
+[PasskeyCredentialExists]
+description = "Passkey credential already exists."
+one = "이 Passkey는 이미 등록되어 있습니다."
+other = "이 Passkey는 이미 등록되어 있습니다."

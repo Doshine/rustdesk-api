@@ -28,12 +28,12 @@ func (as *AuditService) CreateAuditConn(u *model.AuditConn) error {
 	return res
 }
 func (as *AuditService) DeleteAuditConn(u *model.AuditConn) error {
-	return DB.Delete(u).Error
+	return model.ErrAuditAppendOnly
 }
 
 // Update 更新
 func (as *AuditService) UpdateAuditConn(u *model.AuditConn) error {
-	return DB.Model(u).Updates(u).Error
+	return model.ErrAuditAppendOnly
 }
 
 // InfoByPeerIdAndConnId
@@ -77,18 +77,18 @@ func (as *AuditService) CreateAuditFile(u *model.AuditFile) error {
 	return res
 }
 func (as *AuditService) DeleteAuditFile(u *model.AuditFile) error {
-	return DB.Delete(u).Error
+	return model.ErrAuditAppendOnly
 }
 
 // Update 更新
 func (as *AuditService) UpdateAuditFile(u *model.AuditFile) error {
-	return DB.Model(u).Updates(u).Error
+	return model.ErrAuditAppendOnly
 }
 
 func (as *AuditService) BatchDeleteAuditConn(ids []uint) error {
-	return DB.Where("id in (?)", ids).Delete(&model.AuditConn{}).Error
+	return model.ErrAuditAppendOnly
 }
 
 func (as *AuditService) BatchDeleteAuditFile(ids []uint) error {
-	return DB.Where("id in (?)", ids).Delete(&model.AuditFile{}).Error
+	return model.ErrAuditAppendOnly
 }

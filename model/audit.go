@@ -1,8 +1,19 @@
 package model
 
+import (
+	"errors"
+
+	"gorm.io/gorm"
+)
+
+// ErrAuditAppendOnly is returned when an audit event is mutated or deleted.
+// Audit records are evidence and must be corrected by appending a new event.
+var ErrAuditAppendOnly = errors.New("audit records are append-only")
+
 const (
-	AuditActionNew   = "new"
-	AuditActionClose = "close"
+	AuditActionNew    = "new"
+	AuditActionClose  = "close"
+	AuditActionUpdate = "update"
 )
 
 type AuditConn struct {
@@ -19,6 +30,9 @@ type AuditConn struct {
 	CloseTime int64  `json:"close_time" gorm:"default:0;not null;"`
 	TimeModel
 }
+
+func (*AuditConn) BeforeUpdate(*gorm.DB) error { return ErrAuditAppendOnly }
+func (*AuditConn) BeforeDelete(*gorm.DB) error { return ErrAuditAppendOnly }
 
 type AuditConnList struct {
 	AuditConns []*AuditConn `json:"list"`
@@ -39,6 +53,9 @@ type AuditFile struct {
 	FromName string `json:"from_name" gorm:"default:'';not null;"`
 	TimeModel
 }
+
+func (*AuditFile) BeforeUpdate(*gorm.DB) error { return ErrAuditAppendOnly }
+func (*AuditFile) BeforeDelete(*gorm.DB) error { return ErrAuditAppendOnly }
 
 type AuditFileList struct {
 	AuditFiles []*AuditFile `json:"list"`

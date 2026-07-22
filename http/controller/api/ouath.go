@@ -60,7 +60,7 @@ func (o *Oauth) OidcAuth(c *gin.Context) {
 	})
 }
 
-func (o *Oauth) OidcAuthQueryPre(c *gin.Context) (*model.User, *model.UserToken) {
+func (o *Oauth) OidcAuthQueryPre(c *gin.Context) (*model.User, *model.UserToken, string, bool) {
 	var u *model.User
 	var ut *model.UserToken
 	q := &api.OidcAuthQuery{}
@@ -68,32 +68,58 @@ func (o *Oauth) OidcAuthQueryPre(c *gin.Context) (*model.User, *model.UserToken)
 	// 解析查询参数并处理错误
 	if err := c.ShouldBindQuery(q); err != nil {
 		response.Error(c, response.TranslateMsg(c, "ParamsError")+": "+err.Error())
-		return nil, nil
+		return nil, nil, "", false
 	}
 
 	// 获取 OAuth 缓存
 	v := service.AllService.OauthService.GetOauthCache(q.Code)
 	if v == nil {
 		response.Error(c, response.TranslateMsg(c, "OauthExpired"))
-		return nil, nil
+		return nil, nil, "", false
 	}
 
 	// 如果 UserId 为 0，说明还在授权中
 	if v.UserId == 0 {
 		//fix: 1.4.2 webclient oidc
 		c.JSON(http.StatusOK, gin.H{"message": "Authorization in progress, please login and bind", "error": "No authed oidc is found"})
-		return nil, nil
+		return nil, nil, "", false
 	}
 
 	// 获取用户信息
 	u = service.AllService.UserService.InfoById(v.UserId)
 	if u == nil {
 		response.Error(c, response.TranslateMsg(c, "UserNotFound"))
-		return nil, nil
+		return nil, nil, "", false
+	}
+	if !service.AllService.UserService.CheckUserEnable(u) {
+		response.Error(c, response.TranslateMsg(c, "UserDisabled"))
+		return nil, nil, "", false
 	}
 
 	// 删除 OAuth 缓存
 	service.AllService.OauthService.DeleteOauthCache(q.Code)
+	if service.AllService.MfaService.RequiresMfaForLogin(u) {
+		if !u.MfaEnabled {
+			challenge, err := service.AllService.MfaService.CreateEnrollmentChallenge(u, &service.MfaEnrollmentChallengeItem{
+				Id:         v.Id,
+				Uuid:       v.Uuid,
+				DeviceOs:   v.DeviceOs,
+				DeviceType: v.DeviceType,
+				LoginType:  model.LoginLogTypeOauth,
+			})
+			if err != nil {
+				response.Error(c, response.TranslateMsg(c, err.Error()))
+				return nil, nil, "", false
+			}
+			return u, nil, challenge, true
+		}
+		challenge, err := service.AllService.MfaService.CreateOauthChallenge(u, v)
+		if err != nil {
+			response.Error(c, response.TranslateMsg(c, err.Error()))
+			return nil, nil, "", false
+		}
+		return u, nil, challenge, false
+	}
 
 	// 创建登录日志并生成用户令牌
 	ut = service.AllService.UserService.Login(u, &model.LoginLog{
@@ -108,11 +134,11 @@ func (o *Oauth) OidcAuthQueryPre(c *gin.Context) (*model.User, *model.UserToken)
 
 	if ut == nil {
 		response.Error(c, response.TranslateMsg(c, "LoginFailed"))
-		return nil, nil
+		return nil, nil, "", false
 	}
 
 	// 返回用户令牌
-	return u, ut
+	return u, ut, "", false
 }
 
 // OidcAuthQuery
@@ -125,7 +151,15 @@ func (o *Oauth) OidcAuthQueryPre(c *gin.Context) (*model.User, *model.UserToken)
 // @Failure 500 {object} response.ErrorResponse
 // @Router /oidc/auth-query [get]
 func (o *Oauth) OidcAuthQuery(c *gin.Context) {
-	u, ut := o.OidcAuthQueryPre(c)
+	u, ut, challenge, enrollment := o.OidcAuthQueryPre(c)
+	if challenge != "" {
+		if enrollment {
+			c.JSON(http.StatusOK, gin.H{"mfa_enrollment_required": true, "mfa_enrollment_challenge": challenge})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"mfa_required": true, "mfa_challenge": challenge})
+		return
+	}
 	if u == nil || ut == nil {
 		return
 	}

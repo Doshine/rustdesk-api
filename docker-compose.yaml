@@ -7,7 +7,7 @@ services:
       - RUSTDESK_API_RUSTDESK_ID_SERVER=192.168.1.66:21116
       - RUSTDESK_API_RUSTDESK_RELAY_SERVER=192.168.1.66:21117
       - RUSTDESK_API_RUSTDESK_API_SERVER=http://127.0.0.1:21114
-      - RUSTDESK_API_RUSTDESK_KEY=123456789
+      - RUSTDESK_API_RUSTDESK_KEY=${RUSTDESK_API_RUSTDESK_KEY:?set the RustDesk server public key}
     ports:
       - 21114:21114
     volumes:
@@ -15,3 +15,9 @@ services:
       # - ./conf:/app/conf # config
       # - ./resources:/app/resources # 静态资源
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-T", "3", "-O", "/dev/null", "http://127.0.0.1:21114/health/ready"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3

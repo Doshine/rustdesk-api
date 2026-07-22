@@ -33,22 +33,22 @@ if (app) {
 
   document.body.onload = () => {
     const host = document.querySelector('#host');
-    host.value = localStorage.getItem('custom-rendezvous-server');
+    host.value = sessionStorage.getItem('custom-rendezvous-server');
     const id = document.querySelector('#id');
     id.value = localStorage.getItem('id');
     const key = document.querySelector('#key');
-    key.value = localStorage.getItem('key');
+    key.value = sessionStorage.getItem('key');
     player = YUVCanvas.attach(document.getElementById('player'));
     // globals.sendOffCanvas(document.getElementById('player'));
   };
 
   window.connect = () => {
     const host = document.querySelector('#host');
-    localStorage.setItem('custom-rendezvous-server', host.value);
+    sessionStorage.setItem('custom-rendezvous-server', host.value);
     const id = document.querySelector('#id');
     localStorage.setItem('id', id.value);
     const key = document.querySelector('#key');
-    localStorage.setItem('key', key.value);
+    sessionStorage.setItem('key', key.value);
     const func = async () => {
       const conn = globals.newConn();
       conn.setMsgbox(msgbox);
@@ -64,7 +64,7 @@ if (app) {
       });
       document.querySelector('div#status').style.display = 'block';
       document.querySelector('div#connect').style.display = 'none';
-      document.querySelector('div#text').innerHTML = 'Connecting ...';
+      document.querySelector('div#text').textContent = 'Connecting ...';
       await conn.start(id.value);
     };
     func();
@@ -82,12 +82,21 @@ if (app) {
     } else if (type == 'error') {
       document.querySelector('div#status').style.display = 'block';
       document.querySelector('div#canvas').style.display = 'none';
-      document.querySelector('div#text').innerHTML = '<div style="color: red; font-weight: bold;">' + text + '</div>';
+      renderStatus(text, true);
     } else {
       document.querySelector('div#password').style.display = 'none';
       document.querySelector('div#status').style.display = 'block';
-      document.querySelector('div#text').innerHTML = '<div style="font-weight: bold;">' + text + '</div>';
+      renderStatus(text, false);
     }
+  }
+
+  function renderStatus(text, isError) {
+    const container = document.querySelector('div#text');
+    const message = document.createElement('div');
+    message.style.fontWeight = 'bold';
+    if (isError) message.style.color = 'red';
+    message.textContent = String(text ?? '');
+    container.replaceChildren(message);
   }
 
   window.cancel = () => {

@@ -146,6 +146,51 @@ description = "Password login disabled."
 one = "密码登录已禁用。"
 other = "密码登录已禁用。"
 
+[MfaCodeError]
+description = "MFA code error."
+one = "MFA 验证码错误。"
+other = "MFA 验证码错误。"
+
+[MfaEnrollmentRequired]
+description = "MFA enrollment required."
+one = "管理员必须先完成 MFA 绑定。"
+other = "管理员必须先完成 MFA 绑定。"
+
+[MfaAlreadyEnabled]
+description = "MFA already enabled."
+one = "MFA 已启用。"
+other = "MFA 已启用。"
+
+[MfaNotEnrolled]
+description = "MFA not enrolled."
+one = "尚未完成 MFA 绑定。"
+other = "尚未完成 MFA 绑定。"
+
+[MfaDisabled]
+description = "MFA disabled."
+one = "MFA 功能未启用。"
+other = "MFA 功能未启用。"
+
+[MfaStepUpError]
+description = "MFA step-up verification failed."
+one = "当前密码或 MFA 验证码错误，无法关闭 MFA。"
+other = "当前密码或 MFA 验证码错误，无法关闭 MFA。"
+
+[MfaChallengeExpired]
+description = "MFA challenge expired."
+one = "MFA 登录挑战已过期，请重新发起第三方登录。"
+other = "MFA 登录挑战已过期，请重新发起第三方登录。"
+
+[MfaChallengeCodeError]
+description = "MFA challenge code error."
+one = "MFA 验证码错误，请重试。"
+other = "MFA 验证码错误，请重试。"
+
+[MfaEnrollmentChallengeExpired]
+description = "MFA enrollment challenge expired."
+one = "首次 MFA 注册挑战已过期，请重新登录。"
+other = "首次 MFA 注册挑战已过期，请重新登录。"
+
 [CannotShareToSelf]
 description = "Cannot share to self."
 one = "不能共享给自己。"
@@ -195,3 +240,24 @@ other = "短信发送过于频繁，请稍后再试。"
 description = "Sms send failed."
 one = "短信发送失败。"
 other = "短信发送失败。"
+
+[PasskeyDisabled]
+description = "Passkey disabled."
+one = "服务器尚未启用 Passkey 登录。"
+other = "服务器尚未启用 Passkey 登录。"
+[PasskeyChallengeExpired]
+description = "Passkey ceremony expired."
+one = "Passkey 认证流程已过期，请重新开始。"
+other = "Passkey 认证流程已过期，请重新开始。"
+[PasskeyCredentialInvalid]
+description = "Invalid passkey credential."
+one = "无法验证 Passkey 响应。"
+other = "无法验证 Passkey 响应。"
+[PasskeyCredentialRevoked]
+description = "Passkey credential revoked."
+one = "此 Passkey 已被撤销。"
+other = "此 Passkey 已被撤销。"
+[PasskeyCredentialExists]
+description = "Passkey credential already exists."
+one = "此 Passkey 已经注册。"
+other = "此 Passkey 已经注册。"

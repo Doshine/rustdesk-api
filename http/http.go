@@ -3,8 +3,10 @@ package http
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/lejianwen/rustdesk-api/v2/global"
+	"github.com/lejianwen/rustdesk-api/v2/http/controller"
 	"github.com/lejianwen/rustdesk-api/v2/http/middleware"
 	"github.com/lejianwen/rustdesk-api/v2/http/router"
+	"github.com/lejianwen/rustdesk-api/v2/lib/cache"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
@@ -33,6 +35,11 @@ func ApiInit() {
 	g.NoRoute(func(c *gin.Context) {
 		c.String(http.StatusNotFound, "404 not found")
 	})
+	health := controller.NewHealth(global.DB, global.Cache, global.Config.Cache.Type == cache.TypeRedis)
+	// Register probes before the global rate limiter so orchestrator checks
+	// remain reliable under authentication traffic spikes.
+	g.GET("/health/live", health.Live)
+	g.GET("/health/ready", health.Ready)
 	g.Use(middleware.Logger(), middleware.Limiter(), gin.Recovery())
 	router.WebInit(g)
 	router.Init(g)

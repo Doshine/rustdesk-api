@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/lejianwen/rustdesk-api/v2/config"
+	"github.com/lejianwen/rustdesk-api/v2/lib/cache"
 	"github.com/lejianwen/rustdesk-api/v2/lib/jwt"
 	"github.com/lejianwen/rustdesk-api/v2/lib/lock"
 	"github.com/lejianwen/rustdesk-api/v2/model"
@@ -26,6 +27,8 @@ type Service struct {
 	*LdapService
 	*AppService
 	*SmsService
+	*MfaService
+	*PasskeyService
 }
 
 type Dependencies struct {
@@ -34,6 +37,7 @@ type Dependencies struct {
 	Logger *log.Logger
 	Jwt    *jwt.Jwt
 	Lock   *lock.Locker
+	Cache  cache.Handler
 }
 
 var Config *config.Config
@@ -41,18 +45,30 @@ var DB *gorm.DB
 var Logger *log.Logger
 var Jwt *jwt.Jwt
 var Lock lock.Locker
+var Cache cache.Handler
 
 var AllService *Service
 
-func New(c *config.Config, g *gorm.DB, l *log.Logger, j *jwt.Jwt, lo lock.Locker) *Service {
+func New(c *config.Config, g *gorm.DB, l *log.Logger, j *jwt.Jwt, lo lock.Locker, ca cache.Handler) (*Service, error) {
 	Config = c
 	DB = g
 	Logger = l
 	Jwt = j
 	Lock = lo
+	Cache = ca
 	AllService = new(Service)
-	AllService.SmsService = NewSmsServiceFromConfig(c)
-	return AllService
+	AllService.MfaService = &MfaService{}
+	passkeyService, err := NewPasskeyServiceFromConfig(c)
+	if err != nil {
+		return nil, err
+	}
+	AllService.PasskeyService = passkeyService
+	smsService, err := NewSmsServiceFromConfig(c, ca)
+	if err != nil {
+		return nil, err
+	}
+	AllService.SmsService = smsService
+	return AllService, nil
 }
 
 func Paginate(page, pageSize uint) func(db *gorm.DB) *gorm.DB {

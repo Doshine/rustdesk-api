@@ -35,24 +35,25 @@ func (a *Audit) AuditConn(c *gin.Context) {
 	fmt.Println(ttt)*/
 	ac := af.ToAuditConn()
 	if af.Action == model.AuditActionNew {
-		service.AllService.AuditService.CreateAuditConn(ac)
+		if err := service.AllService.AuditService.CreateAuditConn(ac); err != nil {
+			response.Error(c, err.Error())
+			return
+		}
 	} else if af.Action == model.AuditActionClose {
-		ex := service.AllService.AuditService.InfoByPeerIdAndConnId(af.Id, af.ConnId)
-		if ex.Id != 0 {
-			ex.CloseTime = time.Now().Unix()
-			service.AllService.AuditService.UpdateAuditConn(ex)
+		// Closing a session is a new immutable event. Never update the original
+		// connection record because audit history must remain append-only.
+		ac.CloseTime = time.Now().Unix()
+		if err := service.AllService.AuditService.CreateAuditConn(ac); err != nil {
+			response.Error(c, err.Error())
+			return
 		}
 	} else if af.Action == "" {
-		ex := service.AllService.AuditService.InfoByPeerIdAndConnId(af.Id, af.ConnId)
-		if ex.Id != 0 {
-			up := &model.AuditConn{
-				IdModel:   model.IdModel{Id: ex.Id},
-				FromPeer:  ac.FromPeer,
-				FromName:  ac.FromName,
-				SessionId: ac.SessionId,
-				Type:      ac.Type,
-			}
-			service.AllService.AuditService.UpdateAuditConn(up)
+		// Legacy clients send an empty action for metadata updates. Preserve the
+		// event stream by recording an explicit update event instead of mutating it.
+		ac.Action = model.AuditActionUpdate
+		if err := service.AllService.AuditService.CreateAuditConn(ac); err != nil {
+			response.Error(c, err.Error())
+			return
 		}
 	}
 	response.Success(c, "")
@@ -79,6 +80,9 @@ func (a *Audit) AuditFile(c *gin.Context) {
 	//c.ShouldBindBodyWith(ttt, binding.JSON)
 	//fmt.Println(ttt)
 	af := aff.ToAuditFile()
-	service.AllService.AuditService.CreateAuditFile(af)
+	if err := service.AllService.AuditService.CreateAuditFile(af); err != nil {
+		response.Error(c, err.Error())
+		return
+	}
 	response.Success(c, "")
 }

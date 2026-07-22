@@ -13,7 +13,7 @@ const HOSTS = [
   "rs-cn.rustdesk.com",
   "rs-us.rustdesk.com",
 ];
-let HOST = localStorage.getItem("rendezvous-server") || HOSTS[0];
+let HOST = sessionStorage.getItem("rendezvous-server") || HOSTS[0];
 //根据协议设置为ws或wss
 const SCHEMA=location.protocol=="https:"?"wss://":"ws://";
 
@@ -62,16 +62,6 @@ export default class Connection {
     if (!this._options) {
       this._options = globals.getPeers()[id] || {};
     }
-    if (!this._password) {
-      const p = this.getOption("password");
-      if (p) {
-        try {
-          this._password = Uint8Array.from(JSON.parse("[" + p + "]"));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    }
     this._interval = setInterval(() => {
       while (this._msgs.length) {
         this._ws?.sendMessage(this._msgs[0]);
@@ -92,10 +82,10 @@ export default class Connection {
     const nat_type = rendezvous.NatType.SYMMETRIC;
     const punch_hole_request = rendezvous.PunchHoleRequest.fromPartial({
       id,
-      licence_key: localStorage.getItem("key") || undefined,
+      licence_key: sessionStorage.getItem("key") || undefined,
       conn_type,
       nat_type,
-      token: localStorage.getItem("access_token") || undefined,
+      token: sessionStorage.getItem("access_token") || undefined,
     });
     ws.sendRendezvous({ punch_hole_request });
     const msg = (await ws.next()) as rendezvous.RendezvousMessage;
@@ -148,7 +138,7 @@ export default class Connection {
     console.log(new Date() + ": Connected to relay server");
     this._ws = ws;
     const request_relay = rendezvous.RequestRelay.fromPartial({
-      licence_key: localStorage.getItem("key") || undefined,
+      licence_key: sessionStorage.getItem("key") || undefined,
       uuid,
     });
     ws.sendRendezvous({ request_relay });
@@ -161,7 +151,7 @@ export default class Connection {
     if (pk) {
       const RS_PK = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";
       try {
-        pk = await globals.verify(pk, localStorage.getItem("key") || RS_PK);
+        pk = await globals.verify(pk, sessionStorage.getItem("key") || RS_PK);
         if (pk) {
           const idpk = message.IdPk.decode(pk);
           if (idpk.id == this._id) {
@@ -340,6 +330,10 @@ export default class Connection {
     clearInterval(this._interval);
     this._ws?.close();
     this._videoDecoder?.close();
+    this._password = undefined;
+    for (const name of ["password", "os-password", "tmppwd", "remember"]) {
+      delete this._options?.[name];
+    }
   }
 
   refresh() {
@@ -476,26 +470,12 @@ export default class Connection {
     const username = this.getOption("info")?.username;
     if (username && !pi.username) pi.username = username;
     this.setOption("info", pi);
-    if (this.getRemember()) {
-      if (this._password?.length) {
-        const p = this._password.toString();
-        if (p != this.getOption("password")) {
-          this.setOption("password", p);
-          console.log("remember password of " + this._id);
-        }
-      }
-    } else {
-      this.setOption("password", undefined);
-    }
+    this.setOption("password", undefined);
+    this.setOption("os-password", undefined);
+    this.setOption("remember", undefined);
   }
 
   shouldAutoLogin(): string {
-    const l = this.getOption("lock-after-session-end");
-    const a = !!this.getOption("auto-login");
-    const p = this.getOption("os-password");
-    if (p && l && a) {
-      return p;
-    }
     return "";
   }
 
@@ -537,11 +517,11 @@ export default class Connection {
   }
 
   getRemember(): Boolean {
-    return this._options["remember"] || false;
+    return false;
   }
 
   setRemember(v: Boolean) {
-    this.setOption("remember", v);
+    this.setOption("remember", undefined);
   }
 
   getOption(name: string): any {
@@ -555,9 +535,7 @@ export default class Connection {
       this._options[name] = value;
     }
     this._options["tm"] = new Date().getTime();
-    const peers = globals.getPeers();
-    peers[this._id] = this._options;
-    localStorage.setItem("peers", JSON.stringify(peers));
+    globals.persistPeerOptions(this._id, this._options);
   }
 
   inputKey(
@@ -741,7 +719,7 @@ function testDelay() {
       console.log("latency of " + host + ": " + (new Date().getTime() - now));
       if (!nearest) {
         HOST = host;
-        localStorage.setItem("rendezvous-server", host);
+          sessionStorage.setItem("rendezvous-server", host);
       }
     });
   });
@@ -750,7 +728,7 @@ function testDelay() {
 testDelay();
 
 function getDefaultUri(isRelay: Boolean = false): string {
-  const host = localStorage.getItem("custom-rendezvous-server");
+  const host = sessionStorage.getItem("custom-rendezvous-server");
   return getrUriFromRs(host || HOST, isRelay);
 }
 /*

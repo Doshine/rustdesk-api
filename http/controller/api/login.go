@@ -67,11 +67,29 @@ func (l *Login) Login(c *gin.Context) {
 		response.Error(c, response.TranslateMsg(c, "UserDisabled"))
 		return
 	}
-
-	//根据refer判断是webclient还是app
-	ref := c.GetHeader("referer")
-	if ref != "" {
+	// 根据 referer 判断是 WebClient 还是 App，登录门禁和最终会话必须使用同一设备类型。
+	if c.GetHeader("referer") != "" {
 		f.DeviceInfo.Type = model.LoginLogClientWeb
+	}
+	if err := service.AllService.MfaService.VerifyLogin(u, f.MfaCode); err != nil {
+		if err == service.ErrMfaRequired {
+			challenge, challengeErr := service.AllService.MfaService.CreateEnrollmentChallenge(u, &service.MfaEnrollmentChallengeItem{
+				Id:         f.Id,
+				Uuid:       f.Uuid,
+				DeviceOs:   f.DeviceInfo.Os,
+				DeviceType: f.DeviceInfo.Type,
+				LoginType:  model.LoginLogTypeAccount,
+			})
+			if challengeErr != nil {
+				response.Error(c, response.TranslateMsg(c, challengeErr.Error()))
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"mfa_enrollment_required": true, "mfa_enrollment_challenge": challenge})
+			return
+		}
+		loginLimiter.RecordFailedAttempt(clientIp)
+		response.Error(c, response.TranslateMsg(c, err.Error()))
+		return
 	}
 
 	ut := service.AllService.UserService.Login(u, &model.LoginLog{
@@ -191,6 +209,26 @@ func (l *Login) LoginSms(c *gin.Context) {
 
 	if !service.AllService.UserService.CheckUserEnable(u) {
 		response.Error(c, response.TranslateMsg(c, "UserDisabled"))
+		return
+	}
+	if err := service.AllService.MfaService.VerifyLogin(u, f.MfaCode); err != nil {
+		if err == service.ErrMfaRequired {
+			challenge, challengeErr := service.AllService.MfaService.CreateEnrollmentChallenge(u, &service.MfaEnrollmentChallengeItem{
+				Id:         f.Id,
+				Uuid:       f.Uuid,
+				DeviceOs:   f.DeviceInfo.Os,
+				DeviceType: model.LoginLogClientApp,
+				LoginType:  model.LoginLogTypeSms,
+			})
+			if challengeErr != nil {
+				response.Error(c, response.TranslateMsg(c, challengeErr.Error()))
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"mfa_enrollment_required": true, "mfa_enrollment_challenge": challenge})
+			return
+		}
+		loginLimiter.RecordFailedAttempt(clientIp)
+		response.Error(c, response.TranslateMsg(c, err.Error()))
 		return
 	}
 

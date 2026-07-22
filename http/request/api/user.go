@@ -36,6 +36,7 @@ type LoginForm struct {
 	Uuid       string            `json:"uuid"  label:"uuid"`
 	Username   string            `json:"username" validate:"required,gte=2,lte=32" label:"用户名"`
 	Password   string            `json:"password,omitempty" validate:"gte=4,lte=32" label:"密码"`
+	MfaCode    string            `json:"mfa_code,omitempty" validate:"omitempty,min=6,max=10" label:"MFA验证码或备份码"`
 }
 
 type SmsCodeForm struct {
@@ -51,6 +52,7 @@ type LoginSmsForm struct {
 	Uuid       string            `json:"uuid"  label:"uuid"`
 	Phone      string            `json:"phone" validate:"required" label:"手机号"`
 	Code       string            `json:"code" validate:"required" label:"验证码"`
+	MfaCode    string            `json:"mfa_code,omitempty" validate:"omitempty,min=6,max=10" label:"MFA验证码或备份码"`
 }
 
 type UserListQuery struct {

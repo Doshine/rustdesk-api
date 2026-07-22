@@ -1,6 +1,7 @@
 package sms
 
 import (
+	"errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,27 +29,26 @@ type Config struct {
 	Endpoint        string // 阿里云短信endpoint, 为空时使用默认endpoint
 }
 
-// NewSender 根据配置创建Sender, 配置缺失或初始化失败时降级为mock并打warn日志
-func NewSender(cfg *Config, logger *log.Logger) Sender {
+// NewSender fails closed. Mock delivery must be selected explicitly for development.
+func NewSender(cfg *Config, logger *log.Logger) (Sender, error) {
 	if logger == nil {
 		logger = log.StandardLogger()
 	}
 	if cfg == nil {
-		logger.Warn("sms config is nil, fallback to mock sender")
-		return &MockSender{Logger: logger}
+		return nil, errors.New("sms config is nil")
 	}
 	switch cfg.Provider {
 	case ProviderAliyun:
 		sender, err := NewAliyunSender(cfg)
 		if err != nil {
-			logger.Warn("init aliyun sms sender failed, fallback to mock sender: ", err)
-			return &MockSender{Logger: logger}
+			return nil, err
 		}
-		return sender
-	case ProviderMock, "":
-		return &MockSender{Logger: logger}
+		return sender, nil
+	case ProviderMock:
+		return &MockSender{Logger: logger}, nil
+	case "":
+		return nil, errors.New("sms provider is empty")
 	default:
-		logger.Warn("unknown sms provider ", cfg.Provider, ", fallback to mock sender")
-		return &MockSender{Logger: logger}
+		return nil, errors.New("unknown sms provider: " + cfg.Provider)
 	}
 }

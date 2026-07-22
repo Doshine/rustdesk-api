@@ -19,7 +19,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -35,20 +34,22 @@ type OidcEndpoint struct {
 }
 
 type OauthCacheItem struct {
-	UserId     uint   `json:"user_id"`
-	Id         string `json:"id"` //rustdesk的设备ID
-	Op         string `json:"op"`
-	Action     string `json:"action"`
-	Uuid       string `json:"uuid"`
-	DeviceName string `json:"device_name"`
-	DeviceOs   string `json:"device_os"`
-	DeviceType string `json:"device_type"`
-	OpenId     string `json:"open_id"`
-	Username   string `json:"username"`
-	Name       string `json:"name"`
-	Email      string `json:"email"`
-	Verifier   string `json:"verifier"` // used for oauth pkce
-	Nonce      string `json:"nonce"`
+	UserId              uint   `json:"user_id"`
+	Id                  string `json:"id"` //rustdesk的设备ID
+	Op                  string `json:"op"`
+	Action              string `json:"action"`
+	Uuid                string `json:"uuid"`
+	DeviceName          string `json:"device_name"`
+	DeviceOs            string `json:"device_os"`
+	DeviceType          string `json:"device_type"`
+	OpenId              string `json:"open_id"`
+	Username            string `json:"username"`
+	Name                string `json:"name"`
+	Email               string `json:"email"`
+	Verifier            string `json:"verifier"` // used for oauth pkce
+	Nonce               string `json:"nonce"`
+	LoginType           string `json:"login_type,omitempty"`
+	PasskeyCredentialId uint   `json:"passkey_credential_id,omitempty"`
 }
 
 func (oci *OauthCacheItem) ToOauthUser() *model.OauthUser {
@@ -59,8 +60,6 @@ func (oci *OauthCacheItem) ToOauthUser() *model.OauthUser {
 		Email:    oci.Email,
 	}
 }
-
-var OauthCache = &sync.Map{}
 
 const (
 	OauthActionTypeLogin = "login"
@@ -75,24 +74,39 @@ func (oci *OauthCacheItem) UpdateFromOauthUser(oauthUser *model.OauthUser) {
 }
 
 func (os *OauthService) GetOauthCache(key string) *OauthCacheItem {
-	v, ok := OauthCache.Load(key)
-	if !ok {
+	if Cache == nil {
 		return nil
 	}
-	return v.(*OauthCacheItem)
+	item := &OauthCacheItem{}
+	if err := Cache.Get("oauth:"+key, item); err != nil {
+		return nil
+	}
+	// The cache implementations intentionally treat a missing key as a
+	// zero-value read for their legacy callers. OAuth state always carries an
+	// operation and action, so reject that zero value instead of accepting a
+	// replayed/expired state.
+	if item.Op == "" || item.Action == "" {
+		return nil
+	}
+	return item
 }
 
 func (os *OauthService) SetOauthCache(key string, item *OauthCacheItem, expire uint) {
-	OauthCache.Store(key, item)
-	if expire > 0 {
-		time.AfterFunc(time.Duration(expire)*time.Second, func() {
-			os.DeleteOauthCache(key)
-		})
+	if Cache == nil || item == nil {
+		return
+	}
+	if expire == 0 {
+		expire = 600
+	}
+	if err := Cache.Set("oauth:"+key, item, int(expire)); err != nil {
+		Logger.Error("oauth cache set failed: ", err)
 	}
 }
 
 func (os *OauthService) DeleteOauthCache(key string) {
-	OauthCache.Delete(key)
+	if Cache != nil {
+		_ = Cache.Delete("oauth:" + key)
+	}
 }
 
 func (os *OauthService) BeginAuth(op string) (error error, state, verifier, nonce, url string) {

@@ -153,6 +153,51 @@ description = "Password login disabled."
 one = "Inicio de sesión con contraseña deshabilitado."
 other = "Inicio de sesión con contraseña deshabilitado."
 
+[MfaCodeError]
+description = "MFA code error."
+one = "Código MFA no válido."
+other = "Código MFA no válido."
+
+[MfaEnrollmentRequired]
+description = "MFA enrollment required."
+one = "Los administradores deben registrar MFA."
+other = "Los administradores deben registrar MFA."
+
+[MfaAlreadyEnabled]
+description = "MFA already enabled."
+one = "MFA ya está habilitado."
+other = "MFA ya está habilitado."
+
+[MfaNotEnrolled]
+description = "MFA not enrolled."
+one = "MFA no está registrado."
+other = "MFA no está registrado."
+
+[MfaDisabled]
+description = "MFA disabled."
+one = "MFA está deshabilitado."
+other = "MFA está deshabilitado."
+
+[MfaStepUpError]
+description = "MFA step-up verification failed."
+one = "La contraseña actual o el código MFA no son válidos; no se puede desactivar MFA."
+other = "La contraseña actual o el código MFA no son válidos; no se puede desactivar MFA."
+
+[MfaChallengeExpired]
+description = "MFA challenge expired."
+one = "El desafío MFA de inicio de sesión expiró. Inicia de nuevo el acceso de terceros."
+other = "El desafío MFA de inicio de sesión expiró. Inicia de nuevo el acceso de terceros."
+
+[MfaChallengeCodeError]
+description = "MFA challenge code error."
+one = "El código MFA no es válido. Inténtalo de nuevo."
+other = "El código MFA no es válido. Inténtalo de nuevo."
+
+[MfaEnrollmentChallengeExpired]
+description = "MFA enrollment challenge expired."
+one = "El desafío de registro MFA expiró. Inicia sesión de nuevo para reiniciar la configuración."
+other = "El desafío de registro MFA expiró. Inicia sesión de nuevo para reiniciar la configuración."
+
 [CannotShareToSelf]
 description = "Cannot share to self."
 one = "No se puede compartir con uno mismo."
@@ -167,3 +212,24 @@ other = "Prohibido."
 description = "Register success, wait admin confirm."
 one = "Registro exitoso, espere la confirmación del administrador."
 other = "Registro exitoso, espere la confirmación del administrador."
+
+[PasskeyDisabled]
+description = "Passkey disabled."
+one = "El inicio de sesión con passkey no está habilitado en este servidor."
+other = "El inicio de sesión con passkey no está habilitado en este servidor."
+[PasskeyChallengeExpired]
+description = "Passkey ceremony expired."
+one = "La ceremonia passkey caducó. Vuelve a intentarlo."
+other = "La ceremonia passkey caducó. Vuelve a intentarlo."
+[PasskeyCredentialInvalid]
+description = "Invalid passkey credential."
+one = "No se pudo verificar la respuesta passkey."
+other = "No se pudo verificar la respuesta passkey."
+[PasskeyCredentialRevoked]
+description = "Passkey credential revoked."
+one = "Esta passkey fue revocada."
+other = "Esta passkey fue revocada."
+[PasskeyCredentialExists]
+description = "Passkey credential already exists."
+one = "Esta passkey ya está registrada."
+other = "Esta passkey ya está registrada."

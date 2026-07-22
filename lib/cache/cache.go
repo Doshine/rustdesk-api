@@ -1,13 +1,29 @@
 package cache
 
 import (
+	"context"
 	"encoding/json"
 )
 
 type Handler interface {
 	Get(key string, value interface{}) error
 	Set(key string, value interface{}, exp int) error
+	Delete(key string) error
 	Gc() error
+}
+
+// AtomicHandler is required for distributed one-time codes and counters.
+type AtomicHandler interface {
+	Handler
+	Increment(key string, exp int) (int64, error)
+	Decrement(key string) error
+	GetAndDelete(key string, value interface{}) error
+}
+
+// HealthChecker is implemented by external cache backends that can prove
+// readiness without mutating application data.
+type HealthChecker interface {
+	Ping(context.Context) error
 }
 
 // MaxTimeOut 最大超时时间

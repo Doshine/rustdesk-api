@@ -3,6 +3,7 @@ package admin
 type Login struct {
 	Username  string `json:"username" validate:"required" label:"用户名"`
 	Password  string `json:"password,omitempty" validate:"required" label:"密码"`
+	MfaCode   string `json:"mfa_code,omitempty" validate:"omitempty,min=6,max=10" label:"MFA验证码或备份码"`
 	Platform  string `json:"platform" label:"平台"`
 	Captcha   string `json:"captcha,omitempty" label:"验证码"`
 	CaptchaId string `json:"captcha_id,omitempty"`
@@ -17,6 +18,7 @@ type SmsCodeRequest struct {
 type LoginSmsRequest struct {
 	Phone    string `json:"phone" validate:"required" label:"手机号"`
 	Code     string `json:"code" validate:"required" label:"验证码"`
+	MfaCode  string `json:"mfa_code,omitempty" validate:"omitempty,min=6,max=10" label:"MFA验证码或备份码"`
 	Platform string `json:"platform" label:"平台"`
 }
 

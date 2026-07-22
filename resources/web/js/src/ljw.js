@@ -1,5 +1,6 @@
 window._gwen = {}
 window._gwen.kv = {}
+window._gwen.sessionPeers = {}
 const apiserver = localStorage.getItem('api-server')
 
 function stringToUint8Array(str) {
@@ -37,21 +38,18 @@ if (share_token) {
         body: JSON.stringify({share_token})
     }).then(res => res.json()).then(res => {
         if (res.code === 0) {
-            localStorage.setItem('custom-rendezvous-server', res.data.id_server)
-            localStorage.setItem('key', res.data.key)
+            sessionStorage.setItem('custom-rendezvous-server', res.data.id_server)
+            sessionStorage.setItem('key', res.data.key)
             const peer = res.data.peer
             localStorage.setItem('remote-id', peer.info.id)
             peer.tmppwd = stringToUint8Array(window.atob(peer.tmppwd)).toString()
-            const oldPeers = JSON.parse(localStorage.getItem('peers')) || {}
-            oldPeers[peer.info.id] = peer
-            localStorage.setItem('peers', JSON.stringify(oldPeers))
+            window._gwen.sessionPeers[peer.info.id] = peer
         }
     })
 }
 
 let fetching = false
 export function getServerConf(token){
-    console.log('getServerConf', token)
     if(fetching){
         return
     }
@@ -66,9 +64,9 @@ export function getServerConf(token){
     ).then(res => res.json()).then(res => {
         fetching = false
         if (res.code === 0) {
-            if (!localStorage.getItem('custom-rendezvous-server') || !localStorage.getItem('key')) {
-                localStorage.setItem('custom-rendezvous-server', res.data.id_server)
-                localStorage.setItem('key', res.data.key)
+            if (!sessionStorage.getItem('custom-rendezvous-server') || !sessionStorage.getItem('key')) {
+                sessionStorage.setItem('custom-rendezvous-server', res.data.id_server)
+                sessionStorage.setItem('key', res.data.key)
             }
             if (res.data.peers) {
                 const oldPeers = JSON.parse(localStorage.getItem('peers')) || {}
@@ -80,12 +78,10 @@ export function getServerConf(token){
                     } else {
                         oldPeers[k].info = res.data.peers[k].info
                     }
-                    if (oldPeers[k].info && oldPeers[k].info.hash && !oldPeers[k].password) {
-                        let p1 = window.atob(oldPeers[k].info.hash)
-                        const pwd = stringToUint8Array(p1)
-                        oldPeers[k].password = pwd.toString()
-                        oldPeers[k].remember = true
-                    }
+                    delete oldPeers[k].password
+                    delete oldPeers[k].tmppwd
+                    delete oldPeers[k].remember
+                    if (oldPeers[k].info) delete oldPeers[k].info.hash
                 })
                 localStorage.setItem('peers', JSON.stringify(oldPeers))
                 if (needUpdate) {

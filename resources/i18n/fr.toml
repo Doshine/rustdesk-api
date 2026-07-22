@@ -153,6 +153,51 @@ description = "Password login disabled."
 one = "Connexion par mot de passe désactivée."
 other = "Connexion par mot de passe désactivée."
 
+[MfaCodeError]
+description = "MFA code error."
+one = "Code MFA invalide."
+other = "Code MFA invalide."
+
+[MfaEnrollmentRequired]
+description = "MFA enrollment required."
+one = "Les administrateurs doivent enregistrer le MFA."
+other = "Les administrateurs doivent enregistrer le MFA."
+
+[MfaAlreadyEnabled]
+description = "MFA already enabled."
+one = "Le MFA est déjà activé."
+other = "Le MFA est déjà activé."
+
+[MfaNotEnrolled]
+description = "MFA not enrolled."
+one = "Le MFA n'est pas enregistré."
+other = "Le MFA n'est pas enregistré."
+
+[MfaDisabled]
+description = "MFA disabled."
+one = "Le MFA est désactivé."
+other = "Le MFA est désactivé."
+
+[MfaStepUpError]
+description = "MFA step-up verification failed."
+one = "Le mot de passe actuel ou le code MFA est invalide ; le MFA ne peut pas être désactivé."
+other = "Le mot de passe actuel ou le code MFA est invalide ; le MFA ne peut pas être désactivé."
+
+[MfaChallengeExpired]
+description = "MFA challenge expired."
+one = "Le défi MFA de connexion a expiré. Relancez la connexion tierce."
+other = "Le défi MFA de connexion a expiré. Relancez la connexion tierce."
+
+[MfaChallengeCodeError]
+description = "MFA challenge code error."
+one = "Le code MFA est invalide. Réessayez."
+other = "Le code MFA est invalide. Réessayez."
+
+[MfaEnrollmentChallengeExpired]
+description = "MFA enrollment challenge expired."
+one = "Le défi d’inscription MFA a expiré. Reconnectez-vous pour recommencer la configuration."
+other = "Le défi d’inscription MFA a expiré. Reconnectez-vous pour recommencer la configuration."
+
 [CannotShareToSelf]
 description = "Cannot share to self."
 one = "Impossible de partager avec soi-même."
@@ -167,3 +212,24 @@ other = "Banni."
 description = "Register success wait admin confirm."
 one = "Inscription réussie, veuillez attendre la confirmation de l'administrateur."
 other = "Inscription réussie, veuillez attendre la confirmation de l'administrateur."
+
+[PasskeyDisabled]
+description = "Passkey disabled."
+one = "La connexion passkey n’est pas activée sur ce serveur."
+other = "La connexion passkey n’est pas activée sur ce serveur."
+[PasskeyChallengeExpired]
+description = "Passkey ceremony expired."
+one = "La cérémonie passkey a expiré. Recommencez."
+other = "La cérémonie passkey a expiré. Recommencez."
+[PasskeyCredentialInvalid]
+description = "Invalid passkey credential."
+one = "La réponse passkey n’a pas pu être vérifiée."
+other = "La réponse passkey n’a pas pu être vérifiée."
+[PasskeyCredentialRevoked]
+description = "Passkey credential revoked."
+one = "Cette passkey a été révoquée."
+other = "Cette passkey a été révoquée."
+[PasskeyCredentialExists]
+description = "Passkey credential already exists."
+one = "Cette passkey est déjà enregistrée."
+other = "Cette passkey est déjà enregistrée."

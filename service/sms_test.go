@@ -35,7 +35,10 @@ func setupSmsTest(cfg config.SmsConfig) (*SmsService, *fakeSender) {
 func TestGenerateSmsCode(t *testing.T) {
 	re := regexp.MustCompile(`^\d{6}$`)
 	for i := 0; i < 100; i++ {
-		code := generateSmsCode()
+		code, err := generateSmsCode()
+		if err != nil {
+			t.Fatalf("generate code: %v", err)
+		}
 		if !re.MatchString(code) {
 			t.Fatalf("code %s is not 6 digits", code)
 		}

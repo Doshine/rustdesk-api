@@ -19,18 +19,20 @@ UserStatus status;
 bool isAdmin = false;
 */
 type UserPayload struct {
-	Name    string                 `json:"name"`
-	Email   string                 `json:"email"`
-	Note    string                 `json:"note"`
-	IsAdmin *bool                  `json:"is_admin"`
-	Status  int                    `json:"status"`
-	Info    map[string]interface{} `json:"info"`
+	Name       string                 `json:"name"`
+	Email      string                 `json:"email"`
+	Note       string                 `json:"note"`
+	IsAdmin    *bool                  `json:"is_admin"`
+	MfaEnabled bool                   `json:"mfa_enabled"`
+	Status     int                    `json:"status"`
+	Info       map[string]interface{} `json:"info"`
 }
 
 func (up *UserPayload) FromUser(user *model.User) *UserPayload {
 	up.Name = user.Username
 	up.Email = user.Email
 	up.IsAdmin = user.IsAdmin
+	up.MfaEnabled = user.MfaEnabled
 	up.Status = int(user.Status)
 	up.Info = map[string]interface{}{}
 	return up
