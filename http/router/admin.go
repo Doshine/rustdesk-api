@@ -7,6 +7,7 @@ import (
 	"github.com/lejianwen/rustdesk-api/v2/http/controller/admin"
 	"github.com/lejianwen/rustdesk-api/v2/http/controller/admin/my"
 	"github.com/lejianwen/rustdesk-api/v2/http/middleware"
+	"github.com/lejianwen/rustdesk-api/v2/model"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -52,8 +53,19 @@ func Init(g *gin.Engine) {
 	DeviceGroupBind(adg)
 	RelayNodeBind(adg)
 	PasskeyBind(adg)
+	DeploymentCodeBind(adg)
 	//访问静态文件
 	//g.StaticFS("/upload", http.Dir(global.Config.Gin.ResourcesPath+"/upload"))
+}
+
+func DeploymentCodeBind(rg *gin.RouterGroup) {
+	cont := &admin.DeploymentCode{}
+	routes := rg.Group("/deployment_code").Use(middleware.PermissionPrivilege(model.PermissionDeviceManage))
+	routes.GET("/list", cont.List)
+	routes.POST("/create", cont.Create)
+	routes.POST("/revoke", cont.Revoke)
+	routes.POST("/rotate", cont.Rotate)
+	routes.GET("/audit", cont.Audit)
 }
 
 func RustdeskCmdBind(adg *gin.RouterGroup) {

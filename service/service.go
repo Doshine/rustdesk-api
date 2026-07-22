@@ -29,6 +29,7 @@ type Service struct {
 	*SmsService
 	*MfaService
 	*PasskeyService
+	*DeploymentCodeService
 }
 
 type Dependencies struct {
@@ -58,6 +59,7 @@ func New(c *config.Config, g *gorm.DB, l *log.Logger, j *jwt.Jwt, lo lock.Locker
 	Cache = ca
 	AllService = new(Service)
 	AllService.MfaService = &MfaService{}
+	AllService.DeploymentCodeService = &DeploymentCodeService{}
 	passkeyService, err := NewPasskeyServiceFromConfig(c)
 	if err != nil {
 		return nil, err

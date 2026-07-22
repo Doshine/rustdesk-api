@@ -9,7 +9,7 @@ import (
 func TestOauthCacheUsesSharedCacheAndDeletesState(t *testing.T) {
 	Cache = cache.NewSimpleCache()
 	service := &OauthService{}
-	item := &OauthCacheItem{Op: "oidc", Nonce: "nonce"}
+	item := &OauthCacheItem{Op: "oidc", Action: "login", Nonce: "nonce"}
 	service.SetOauthCache("state", item, 60)
 
 	got := service.GetOauthCache("state")

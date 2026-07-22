@@ -69,6 +69,10 @@ func ApiInit(g *gin.Engine) {
 		frg.POST("/sysinfo", pe.SysInfo)
 		frg.POST("/sysinfo_ver", pe.SysInfoVer)
 	}
+	{
+		deployment := &api.DeploymentCode{}
+		frg.POST("/deployment/claim", deployment.Claim)
+	}
 
 	if global.Config.App.WebClient == 1 {
 		WebClientRoutes(frg)

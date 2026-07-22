@@ -24,7 +24,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const DatabaseVersion = 272
+const DatabaseVersion = 273
 
 // @title 管理系统API
 // @version 1.0
@@ -344,6 +344,8 @@ func Migrate(version uint) error {
 			&model.ServerCmd{},
 			&model.DeviceGroup{},
 			&model.RelayNode{},
+			&model.DeploymentCode{},
+			&model.DeploymentAuditEvent{},
 		); err != nil {
 			return err
 		}
