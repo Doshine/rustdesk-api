@@ -6,7 +6,9 @@ type ShareRecord struct {
 	PeerId       string `json:"peer_id" gorm:"default:'';not null;index"`
 	ShareToken   string `json:"share_token" gorm:"default:'';not null;index"`
 	PasswordType string `json:"password_type" gorm:"default:'';not null;"`
-	Password     string `json:"password" gorm:"default:'';not null;"`
+	// Password is an ephemeral remote-access credential. It is required by the
+	// web client hand-off but must never be serialized in share-record lists.
+	Password     string `json:"-" gorm:"default:'';not null;"`
 	Expire       int64  `json:"expire" gorm:"default:0;not null;"`
 	TimeModel
 }
