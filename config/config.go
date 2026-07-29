@@ -135,6 +135,13 @@ func (c *Config) Validate() error {
 	if c.App.CaptchaThreshold < 0 && c.App.BanThreshold > 0 {
 		errs = append(errs, errors.New("captcha-threshold cannot be negative while IP banning is enabled"))
 	}
+	// 自锁组合：RequiresMfaForLogin() 只看 required-for-admin，不看 enabled。
+	// 二者取 true/false 时，管理员登录会被要求提供 MFA，而 MFA 功能整体关闭导致
+	// 无法绑定验证器——全体管理员被永久锁在登录页。这属于配置错误，
+	// 在开发模式下同样致命，因此放在 AllowInsecureDevelopment 提前返回之前。
+	if c.Mfa.RequiredForAdmin && !c.Mfa.Enabled {
+		errs = append(errs, errors.New("mfa.required-for-admin requires mfa.enabled=true, otherwise administrators cannot enrol and will be locked out"))
+	}
 	if c.Gorm.Type == TypePostgresql {
 		if err := c.Postgresql.ValidateConnectionBoundary(); err != nil {
 			errs = append(errs, err)
