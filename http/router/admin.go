@@ -70,7 +70,9 @@ func DeploymentCodeBind(rg *gin.RouterGroup) {
 
 func RustdeskCmdBind(adg *gin.RouterGroup) {
 	cont := &admin.Rustdesk{}
-	rg := adg.Group("/rustdesk")
+	// 这些接口会把命令直送 hbbs/hbbr 的本机控制端口，必须限制为管理员。
+	// 此前只挂了 BackendUserAuth，任意登录用户（含普通角色）均可下发服务器命令。
+	rg := adg.Group("/rustdesk").Use(middleware.AdminPrivilege())
 	rg.POST("/sendCmd", cont.SendCmd)
 	rg.GET("/cmdList", cont.CmdList)
 	rg.POST("/cmdDelete", cont.CmdDelete)
@@ -112,11 +114,13 @@ func UserBind(rg *gin.RouterGroup) {
 		aR.GET("/passkeys", passkey.List)
 		aR.DELETE("/passkeys/:id", passkey.Revoke)
 		//aR.GET("/myPeer", cont.MyPeer)
-		aR.POST("/groupUsers", cont.GroupUsers)
 	}
 	aRP := rg.Group("/user").Use(middleware.AdminPrivilege())
 	{
 		cont := &admin.User{}
+		// GroupUsers 返回全量分组与全量用户（含手机号、角色、is_admin），
+		// 属于管理员能力，此前误挂在无权限校验的分组下。
+		aRP.POST("/groupUsers", cont.GroupUsers)
 		aRP.GET("/list", cont.List)
 		aRP.GET("/detail/:id", cont.Detail)
 		aRP.POST("/create", cont.Create)

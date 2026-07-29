@@ -327,6 +327,11 @@ func (us *UserService) Update(u *model.User) error {
 	if requestedRole == model.RoleOwner && currentUser.Role != model.RoleOwner {
 		return errors.New("owner role cannot be assigned through the user API")
 	}
+	// owner 只能被授予一次（引导账户），因此也必须禁止被剥夺：
+	// 否则任一 admin 把 owner 降级后，系统将永远无法再产生 owner。
+	if currentUser.Role == model.RoleOwner && requestedRole != "" && requestedRole != model.RoleOwner {
+		return errors.New("owner role cannot be removed through the user API")
+	}
 	if requestedRole != "" && !model.IsValidRole(requestedRole) {
 		return errors.New("invalid role")
 	}
