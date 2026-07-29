@@ -59,9 +59,13 @@ jobs:
           fetch-depth: 0
       - uses: actions/checkout@v4
         with:
-          repository: lejianwen/rustdesk-api-web
+          # 必须是本项目的前端 fork，而不是上游仓库：
+          # 此前指向 lejianwen/rustdesk-api-web@master，导致自研管理后台
+          # （品牌化、MFA/Passkey 交互、部署码管理、7 语言 i18n）从未进入任何发布产物，
+          # 且发布物在构建期拉取第三方仓库的可变分支，构成供应链注入路径。
+          repository: Doshine/rustdesk-api-web
           path: rustdesk-api-web
-          ref: master
+          ref: bfd188c4d61b410d8736a1a720da0ff4e2823992
 
       - name: Set up Go environment
         uses: actions/setup-go@v4
@@ -76,7 +80,7 @@ jobs:
       - name: build rustdesk-api-web
         working-directory: rustdesk-api-web
         run: |
-          npm install
+          npm ci
           npm run build
           mkdir -p ../resources/admin/
           cp -ar dist/* ../resources/admin/
