@@ -183,6 +183,7 @@ func InitGlobal() {
 		}, global.Logger)
 	}
 	DatabaseAutoUpdate()
+	BootstrapInitialAdmin()
 
 	//validator
 	global.ApiInitValidator()
@@ -215,6 +216,76 @@ func InitGlobal() {
 		BanDuration:      30 * time.Minute,
 	})
 	global.LoginLimiter.RegisterProvider(utils.B64StringCaptchaProvider{})
+}
+
+// BootstrapInitialAdmin 在数据库尚无任何用户时创建初始 owner 账号与默认分组。
+//
+// 必须独立于 AutoMigrate 执行：显式迁移路径（gorm.auto-migrate=false，生产部署的
+// 标准形态）下 DatabaseAutoUpdate 会提前 return，根本走不到里面的引导逻辑；
+// 而且迁移脚本自身已向 versions 写入记录，那里的 versionCount==0 判据在该路径下
+// 永远不成立。两者叠加的后果是：全新生产部署没有任何可登录账号。
+//
+// 这里改用"用户表为空"作为判据——那才是真正关心的不变量。
+// 已有用户时直接返回，因此对既有的 AutoMigrate 路径是无副作用的空操作。
+func BootstrapInitialAdmin() {
+	db := global.DB
+	if db == nil {
+		return
+	}
+	var userCount int64
+	if err := db.Model(&model.User{}).Count(&userCount).Error; err != nil {
+		global.Logger.Fatalf("bootstrap initial admin: count users failed: %v", err)
+	}
+	if userCount > 0 {
+		return
+	}
+
+	pwd := os.Getenv("RUSTDESK_API_BOOTSTRAP_ADMIN_PASSWORD")
+	if len(pwd) < 16 {
+		global.Logger.Fatal("database has no user yet; RUSTDESK_API_BOOTSTRAP_ADMIN_PASSWORD must contain at least 16 characters for first startup")
+	}
+	hashedPassword, err := utils.EncryptPassword(pwd)
+	if err != nil {
+		global.Logger.Fatalf("bootstrap initial admin: hash password failed: %v", err)
+	}
+
+	err = db.Transaction(func(tx *gorm.DB) error {
+		localizer := global.Localizer("")
+		defaultName, _ := localizer.LocalizeMessage(&i18n.Message{ID: "DefaultGroup"})
+		shareName, _ := localizer.LocalizeMessage(&i18n.Message{ID: "ShareGroup"})
+
+		// 分组可能已由其他路径建过，按类型取用而不是无条件新建
+		group := &model.Group{}
+		if err := tx.Where("type = ?", model.GroupTypeDefault).First(group).Error; err != nil {
+			group = &model.Group{Name: defaultName, Type: model.GroupTypeDefault}
+			if err := tx.Create(group).Error; err != nil {
+				return err
+			}
+		}
+		shareGroup := &model.Group{}
+		if err := tx.Where("type = ?", model.GroupTypeShare).First(shareGroup).Error; err != nil {
+			shareGroup = &model.Group{Name: shareName, Type: model.GroupTypeShare}
+			if err := tx.Create(shareGroup).Error; err != nil {
+				return err
+			}
+		}
+
+		isAdmin := true
+		admin := &model.User{
+			Username: "admin",
+			Nickname: "Admin",
+			Status:   model.COMMON_STATUS_ENABLE,
+			IsAdmin:  &isAdmin,
+			GroupId:  group.Id,
+			Role:     model.RoleOwner,
+			Password: hashedPassword,
+		}
+		return tx.Create(admin).Error
+	})
+	if err != nil {
+		global.Logger.Fatalf("bootstrap initial admin: %v", err)
+	}
+	global.Logger.Info("initial admin created with externally supplied bootstrap password")
 }
 
 func DatabaseAutoUpdate() {
