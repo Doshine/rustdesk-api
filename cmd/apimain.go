@@ -379,17 +379,31 @@ func DatabaseAutoUpdate() {
 
 func VerifyDatabaseVersion(db *gorm.DB, expected uint) error {
 	if !db.Migrator().HasTable(&model.Version{}) {
-		return fmt.Errorf("versions table is missing; apply the reviewed migration for version %d before startup", expected)
+		return fmt.Errorf("versions table is missing; run yinhe/deploy/migrate.sh to apply migrations for version %d before startup", expected)
 	}
 
-	var version model.Version
-	if err := db.Order("id desc").First(&version).Error; err != nil {
+	// 取 MAX(version) 而不是「按 id 倒序取第一条」：后者依赖 id 与 version
+	// 严格同序，一旦有补丁迁移插入历史版本号就会读到错误的值。
+	var current uint
+	if err := db.Model(&model.Version{}).Select("coalesce(max(version), 0)").Scan(&current).Error; err != nil {
 		return fmt.Errorf("read database version: %w", err)
 	}
-	if version.Version != expected {
-		return fmt.Errorf("database version %d does not match application version %d", version.Version, expected)
+	if current == expected {
+		return nil
 	}
-	return nil
+	// 区分两个方向，给出可直接执行的下一步；原来只报「不匹配」，
+	// 运维看到后并不知道该升级数据库还是回滚应用。
+	if current < expected {
+		return fmt.Errorf(
+			"database version %d is older than application version %d; "+
+				"run yinhe/deploy/migrate.sh (with a DDL-capable role) to apply pending migrations",
+			current, expected)
+	}
+	return fmt.Errorf(
+		"database version %d is newer than application version %d; "+
+			"the database was migrated by a newer build — deploy the matching application version, "+
+			"or roll the schema back with the corresponding down script in rustdesk-api/supabase/rollback/",
+		current, expected)
 }
 
 func Migrate(version uint) error {
