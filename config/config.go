@@ -51,6 +51,7 @@ type Config struct {
 	Sms        SmsConfig
 	Mfa        MfaConfig
 	Passkey    PasskeyConfig
+	Metrics    MetricsConfig
 }
 
 func (a *Admin) Init() {
@@ -89,6 +90,7 @@ func Init(rowVal *Config, path string) *viper.Viper {
 		"postgresql.sslmode", "postgresql.ssl-root-cert", "postgresql.time-zone", "postgresql.schema", "postgresql.pool-mode", "postgresql.jit-access",
 		"mfa.enabled", "mfa.issuer", "mfa.encryption-key", "mfa.required-for-admin",
 		"passkey.enabled", "passkey.rp-id", "passkey.rp-display-name", "passkey.origins", "passkey.require-user-verification",
+		"metrics.enabled", "metrics.token",
 	} {
 		if err := v.BindEnv(key); err != nil {
 			panic(fmt.Errorf("fatal environment binding for %s: %w", key, err))
@@ -221,6 +223,10 @@ func (c *Config) Validate() error {
 	}
 	if c.Gorm.Type == TypeMysql && (c.Mysql.Tls == "" || c.Mysql.Tls == "false" || c.Mysql.Tls == "skip-verify") {
 		errs = append(errs, errors.New("mysql.tls must verify the database server certificate"))
+	}
+	// /metrics 暴露用户数、设备数、在线数等经营信息，启用时必须有 token。
+	if c.Metrics.Enabled && len(strings.TrimSpace(c.Metrics.Token)) < 16 {
+		errs = append(errs, errors.New("metrics.token must contain at least 16 characters when metrics is enabled"))
 	}
 	if c.Gorm.Type == TypePostgresql && c.Postgresql.Sslmode != "verify-full" {
 		errs = append(errs, errors.New("postgresql.sslmode must be verify-full"))

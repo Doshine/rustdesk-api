@@ -126,3 +126,9 @@ cache:
   redis-tls-ca-file: "" # 私有 CA 时填写挂载路径；公有 CA 可使用系统信任库
   redis-tls-server-name: "" # 默认从 redis-addr 推导
   redis-key-prefix: "yinhe:prod:" # ACL key pattern 应与该前缀匹配
+
+metrics:
+  enabled: false  # 开启后暴露 /metrics（Prometheus 文本格式）
+  # 指标含用户数/设备数/在线数等经营信息，启用时必须配 token（≥16 字符）。
+  # 建议经 RUSTDESK_API_METRICS_TOKEN_FILE 以文件注入。
+  token: ""

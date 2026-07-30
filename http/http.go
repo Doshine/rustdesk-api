@@ -40,7 +40,13 @@ func ApiInit() {
 	// remain reliable under authentication traffic spikes.
 	g.GET("/health/live", health.Live)
 	g.GET("/health/ready", health.Ready)
-	g.Use(middleware.SecurityHeaders(), middleware.Logger(), middleware.Limiter(), gin.Recovery())
+	// /metrics 与健康探针同样注册在限流之前：抓取端是内部监控，不应被
+	// 认证流量高峰挤掉。端点本身由 Bearer token 保护，未配 token 时不注册。
+	if global.Config.Metrics.Enabled && global.Config.Metrics.Token != "" {
+		m := controller.NewMetrics(global.DB, global.Config.Postgresql.SchemaName(), global.Config.Metrics.Token)
+		g.GET("/metrics", m.Handler)
+	}
+	g.Use(middleware.SecurityHeaders(), controller.HTTPStatsMiddleware(), middleware.Logger(), middleware.Limiter(), gin.Recovery())
 	router.WebInit(g)
 	router.Init(g)
 	router.ApiInit(g)

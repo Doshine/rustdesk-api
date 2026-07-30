@@ -28,6 +28,7 @@ var secretFileBindings = []secretFileBinding{
 	{key: "ldap.bind-password", valueEnv: "RUSTDESK_API_LDAP_BIND_PASSWORD", secretEnv: "RUSTDESK_API_LDAP_BIND_PASSWORD_FILE"},
 	{key: "oss.access-key-id", valueEnv: "RUSTDESK_API_OSS_ACCESS_KEY_ID", secretEnv: "RUSTDESK_API_OSS_ACCESS_KEY_ID_FILE"},
 	{key: "oss.access-key-secret", valueEnv: "RUSTDESK_API_OSS_ACCESS_KEY_SECRET", secretEnv: "RUSTDESK_API_OSS_ACCESS_KEY_SECRET_FILE"},
+	{key: "metrics.token", valueEnv: "RUSTDESK_API_METRICS_TOKEN", secretEnv: "RUSTDESK_API_METRICS_TOKEN_FILE"},
 }
 
 // applySecretFileOverrides supports Docker/Kubernetes/Rainbond mounted secrets
