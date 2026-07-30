@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"errors"
+	"net"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -187,10 +189,11 @@ func (ct *RelayNode) Test(c *gin.Context) {
 	}
 	latency, err := service.AllService.RelayNodeService.TestConnection(host, port)
 	ok := err == nil
-	errMsg := ""
-	if err != nil {
-		errMsg = err.Error()
-	}
+	// 不回显原始错误串。该接口接受任意 host:port，原样返回 net 包的错误文本
+	// （connection refused / no route to host / i/o timeout 三者可区分）会把它
+	// 变成一个精确的内网探测预言机——管理员账号一旦被盗即可用来摸清内网拓扑。
+	// 归一成粗粒度分类：功能上足够运维判断，信息量不足以做端口扫描。
+	errMsg := classifyDialError(err)
 	// 库内节点测试：回写探测结果（在线/离线、延迟、探测时间）
 	if f.RowId > 0 {
 		status := model.RelayNodeStatusOnline
@@ -207,4 +210,21 @@ func (ct *RelayNode) Test(c *gin.Context) {
 		"latency_ms": latency,
 		"error":      errMsg,
 	})
+}
+
+// classifyDialError 把探测错误归一为粗粒度分类，避免把精确的网络错误
+// 回显给调用方（见 Test 中的说明）。
+func classifyDialError(err error) string {
+	if err == nil {
+		return ""
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "timeout"
+	}
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return "unresolved"
+	}
+	return "unreachable"
 }
