@@ -56,6 +56,17 @@ func (ct *Login) Login(c *gin.Context) {
 		return
 	}
 
+	// 请求体解析完才知道用户名，此处再按「IP + 账号」两个维度复核一次。
+	// 上面第一次检查只能用 IP（那时还没有用户名），且原实现丢弃了 banned
+	// 返回值——被封禁的 IP 依然可以继续尝试，只是会被要求验证码。
+	bannedNow, subjectCaptcha := loginLimiter.CheckSecurityStatusFor(clientIp, f.Username)
+	if bannedNow {
+		global.Logger.Warn(fmt.Sprintf("Login Fail: %s %s %s", "LoginBanned", c.RemoteIP(), clientIp))
+		response.Fail(c, 101, response.TranslateMsg(c, "LoginBanned"))
+		return
+	}
+	needCaptcha = needCaptcha || subjectCaptcha
+
 	// 检查是否需要验证码
 	if needCaptcha {
 		if f.CaptchaId == "" || f.Captcha == "" || !loginLimiter.VerifyCaptcha(f.CaptchaId, f.Captcha) {
@@ -68,7 +79,7 @@ func (ct *Login) Login(c *gin.Context) {
 
 	if u.Id == 0 {
 		global.Logger.Warn(fmt.Sprintf("Login Fail: %s %s %s", "UsernameOrPasswordError", c.RemoteIP(), clientIp))
-		loginLimiter.RecordFailedAttempt(clientIp)
+		loginLimiter.RecordFailedAttemptFor(clientIp, f.Username)
 		if _, needCaptcha = loginLimiter.CheckSecurityStatus(clientIp); needCaptcha {
 			response.Fail(c, 110, response.TranslateMsg(c, "UsernameOrPasswordError"))
 		} else {

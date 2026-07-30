@@ -54,10 +54,19 @@ func (l *Login) Login(c *gin.Context) {
 		return
 	}
 
+	// 客户端登录路径此前完全没有封禁检查（只在失败时记账、从不读取），
+	// 等于限流器对 /api/login 不起作用。这里补上，并叠加账号维度：
+	// 伪造 X-Forwarded-For 可以换掉 IP 键，但换不掉被爆破的账号键。
+	if banned, _ := loginLimiter.CheckSecurityStatusFor(clientIp, f.Username); banned {
+		global.Logger.Warn(fmt.Sprintf("Login Fail: %s %s", "LoginBanned", c.RemoteIP()))
+		response.Error(c, response.TranslateMsg(c, "LoginBanned"))
+		return
+	}
+
 	u := service.AllService.UserService.InfoByUsernamePassword(f.Username, f.Password)
 
 	if u.Id == 0 {
-		loginLimiter.RecordFailedAttempt(clientIp)
+		loginLimiter.RecordFailedAttemptFor(clientIp, f.Username)
 		global.Logger.Warn(fmt.Sprintf("Login Fail: %s %s %s", "UsernameOrPasswordError", c.RemoteIP(), c.ClientIP()))
 		response.Error(c, response.TranslateMsg(c, "UsernameOrPasswordError"))
 		return
@@ -87,10 +96,13 @@ func (l *Login) Login(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"mfa_enrollment_required": true, "mfa_enrollment_challenge": challenge})
 			return
 		}
-		loginLimiter.RecordFailedAttempt(clientIp)
+		loginLimiter.RecordFailedAttemptFor(clientIp, f.Username)
 		response.Error(c, response.TranslateMsg(c, err.Error()))
 		return
 	}
+
+	// 登录成功：清理两个维度的失败计数
+	loginLimiter.RemoveAttemptsFor(clientIp, f.Username)
 
 	ut := service.AllService.UserService.Login(u, &model.LoginLog{
 		UserId:   u.Id,

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"strings"
 	"errors"
 	"sync"
 	"time"
@@ -292,5 +293,46 @@ func (ll *LoginLimiter) cleanupExpired() {
 	// 清理验证码
 	for id := range ll.captchas {
 		ll.pruneCaptchas(id)
+	}
+}
+
+// subjectKey 把账号维度的键与 IP 维度的键区分开，避免用户名恰好等于某个 IP
+// 字面量时两者互相干扰。
+func subjectKey(subject string) string {
+	return "subject:" + strings.ToLower(strings.TrimSpace(subject))
+}
+
+// RecordFailedAttemptFor 在 IP 与账号两个维度同时记账。
+//
+// 原实现只按 IP 计数，而 IP 来自 c.ClientIP()——在反向代理后由
+// X-Forwarded-For 决定。攻击者每次请求换一个伪造 XFF，就能让计数永远命中
+// 不同的键，封禁与验证码门槛一次都不会触发。叠加账号维度后，针对某个账号的
+// 爆破无论换多少 IP 都会被同一个键累计到阈值。
+//
+// subject 为空时退化为原有的纯 IP 行为（例如请求体都没解析出来的场景）。
+func (ll *LoginLimiter) RecordFailedAttemptFor(ip, subject string) {
+	ll.RecordFailedAttempt(ip)
+	if s := strings.TrimSpace(subject); s != "" {
+		ll.RecordFailedAttempt(subjectKey(s))
+	}
+}
+
+// CheckSecurityStatusFor 任一维度触发即生效：IP 维度挡住单机喷洒，
+// 账号维度挡住针对特定账号的分布式爆破。
+func (ll *LoginLimiter) CheckSecurityStatusFor(ip, subject string) (banned bool, captchaRequired bool) {
+	banned, captchaRequired = ll.CheckSecurityStatus(ip)
+	if s := strings.TrimSpace(subject); s != "" {
+		sBanned, sCaptcha := ll.CheckSecurityStatus(subjectKey(s))
+		banned = banned || sBanned
+		captchaRequired = captchaRequired || sCaptcha
+	}
+	return
+}
+
+// RemoveAttemptsFor 登录成功后同时清理两个维度的计数。
+func (ll *LoginLimiter) RemoveAttemptsFor(ip, subject string) {
+	ll.RemoveAttempts(ip)
+	if s := strings.TrimSpace(subject); s != "" {
+		ll.RemoveAttempts(subjectKey(s))
 	}
 }
