@@ -40,6 +40,10 @@ func (a *Audit) ConnList(c *gin.Context) {
 		if query.FromPeer != "" {
 			tx.Where("from_peer like ?", "%"+query.FromPeer+"%")
 		}
+		if query.Uuid != "" {
+			// 精确匹配：uuid 要么整个相等，要么就不是这次会话，用 like 只会引入噪声
+			tx.Where("uuid = ?", query.Uuid)
+		}
 		tx.Order("id desc")
 	})
 	response.Success(c, res)
@@ -138,6 +142,10 @@ func (a *Audit) FileList(c *gin.Context) {
 		}
 		if query.FromPeer != "" {
 			tx.Where("from_peer like ?", "%"+query.FromPeer+"%")
+		}
+		if query.Uuid != "" {
+			// 精确匹配：uuid 要么整个相等，要么就不是这次会话，用 like 只会引入噪声
+			tx.Where("uuid = ?", query.Uuid)
 		}
 		tx.Order("id desc")
 	})
