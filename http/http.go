@@ -40,7 +40,7 @@ func ApiInit() {
 	// remain reliable under authentication traffic spikes.
 	g.GET("/health/live", health.Live)
 	g.GET("/health/ready", health.Ready)
-	g.Use(middleware.Logger(), middleware.Limiter(), gin.Recovery())
+	g.Use(middleware.SecurityHeaders(), middleware.Logger(), middleware.Limiter(), gin.Recovery())
 	router.WebInit(g)
 	router.Init(g)
 	router.ApiInit(g)
