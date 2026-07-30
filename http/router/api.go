@@ -80,10 +80,16 @@ func ApiInit(g *gin.Engine) {
 
 	{
 		au := &api.Audit{}
+		// 这两个接口必须保持匿名——被控端上报审计时不带 Authorization
+		// （rustdesk/src/server/connection.rs 的 post_audit_async 以空 header 调用），
+		// 加鉴权会直接切断全部审计采集。但匿名 + append-only 意味着任何人都能
+		// 灌入伪造记录且管理员删不掉，因此加体积与速率限制，
+		// 并在控制器内校验设备身份、由服务端派生 IP。
+		ag := middleware.AuditIngestGuard()
 		//[method:POST] [uri:/api/audit/conn]
-		frg.POST("/audit/conn", au.AuditConn)
+		frg.POST("/audit/conn", ag, au.AuditConn)
 		//[method:POST] [uri:/api/audit/file]
-		frg.POST("/audit/file", au.AuditFile)
+		frg.POST("/audit/file", ag, au.AuditFile)
 	}
 
 	frg.Use(middleware.RustAuth())
