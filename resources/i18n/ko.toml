@@ -174,8 +174,8 @@ other = "MFA가 비활성화되어 있습니다."
 
 [MfaStepUpError]
 description = "MFA step-up verification failed."
-one = "현재 비밀번호 또는 MFA 코드가 올바르지 않아 MFA를 끌 수 없습니다."
-other = "현재 비밀번호 또는 MFA 코드가 올바르지 않아 MFA를 끌 수 없습니다."
+one = "현재 비밀번호 또는 MFA 코드가 올바르지 않습니다."
+other = "현재 비밀번호 또는 MFA 코드가 올바르지 않습니다."
 
 [MfaChallengeExpired]
 description = "MFA challenge expired."

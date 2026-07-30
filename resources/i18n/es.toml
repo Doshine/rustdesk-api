@@ -180,8 +180,8 @@ other = "MFA está deshabilitado."
 
 [MfaStepUpError]
 description = "MFA step-up verification failed."
-one = "La contraseña actual o el código MFA no son válidos; no se puede desactivar MFA."
-other = "La contraseña actual o el código MFA no son válidos; no se puede desactivar MFA."
+one = "La contraseña actual o el código MFA no son válidos."
+other = "La contraseña actual o el código MFA no son válidos."
 
 [MfaChallengeExpired]
 description = "MFA challenge expired."

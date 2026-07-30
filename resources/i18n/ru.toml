@@ -180,8 +180,8 @@ other = "MFA отключена."
 
 [MfaStepUpError]
 description = "MFA step-up verification failed."
-one = "Текущий пароль или код MFA неверен; отключить MFA невозможно."
-other = "Текущий пароль или код MFA неверен; отключить MFA невозможно."
+one = "Текущий пароль или код MFA неверен."
+other = "Текущий пароль или код MFA неверен."
 
 [MfaChallengeExpired]
 description = "MFA challenge expired."

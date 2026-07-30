@@ -171,8 +171,8 @@ other = "MFA is disabled."
 
 [MfaStepUpError]
 description = "MFA step-up verification failed."
-one = "The current password or MFA code is invalid; MFA cannot be disabled."
-other = "The current password or MFA code is invalid; MFA cannot be disabled."
+one = "The current password or MFA code is invalid."
+other = "The current password or MFA code is invalid."
 
 [MfaChallengeExpired]
 description = "MFA challenge expired."

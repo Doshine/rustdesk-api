@@ -173,8 +173,8 @@ other = "MFA 功能未启用。"
 
 [MfaStepUpError]
 description = "MFA step-up verification failed."
-one = "当前密码或 MFA 验证码错误，无法关闭 MFA。"
-other = "当前密码或 MFA 验证码错误，无法关闭 MFA。"
+one = "当前密码或 MFA 验证码错误。"
+other = "当前密码或 MFA 验证码错误。"
 
 [MfaChallengeExpired]
 description = "MFA challenge expired."

@@ -146,12 +146,24 @@ func storedMfaEnrollment(u *model.User) (*MfaEnrollment, error) {
 	return newMfaEnrollment(u, secret, codes), nil
 }
 
-func (ms *MfaService) Enable(u *model.User, code string) error {
+// Enable 绑定验证器并启用 MFA。要求 step-up（当前密码），与 Disable 对齐。
+//
+// 此前只有"关闭 MFA"要求当前密码，"绑定并启用"不要求。后果是：攻击者拿到
+// 任意一条有效会话（XSS、日志泄露、共享终端）后，可直接给受害账号绑定自己的
+// 验证器——受害者此后凭正确口令也无法登录，而攻击者掌握 TOTP 与全部备份码。
+// 一次性的会话窃取由此升级为长期账号接管 + 对账号主人的拒绝服务。
+//
+// 注意：首次强制绑定走的是 CompleteEnrollmentChallenge，不经过本函数——
+// 那条路径上用户刚用密码完成主认证，再要一次密码没有意义。
+func (ms *MfaService) Enable(u *model.User, code, password string) error {
 	if u == nil || u.Id == 0 {
 		return errors.New("user is required")
 	}
 	if u.MfaEnabled {
 		return ErrMfaAlreadyEnabled
+	}
+	if !AllService.UserService.VerifyCurrentPassword(u, password) {
+		return ErrMfaStepUpInvalid
 	}
 	secret, err := decryptMfaValue(u.MfaSecretEncrypted)
 	if err != nil || secret == "" {

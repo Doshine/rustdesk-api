@@ -93,7 +93,8 @@ func (m *Mfa) complete(c *gin.Context, enable bool) {
 	}
 	var err error
 	if enable {
-		err = service.AllService.MfaService.Enable(u, f.Code)
+		// 绑定并启用同样要求 step-up（当前密码），与 Disable 对齐
+		err = service.AllService.MfaService.Enable(u, f.Code, f.Password)
 	} else {
 		err = service.AllService.MfaService.Disable(u, f.Code, f.Password)
 	}
