@@ -16,9 +16,28 @@ func TestProductionSecurityValidationRejectsInsecureDefaults(t *testing.T) {
 }
 
 func TestDevelopmentOverrideIsExplicit(t *testing.T) {
-	cfg := &Config{App: App{AllowInsecureDevelopment: true, CaptchaThreshold: -1}}
+	// 开发覆盖跳过的是生产强度要求，不包括 jwt.key 非空——空 key 会让登录
+	// 静默失败（见 TestEmptyJwtKeyIsRejectedEvenInDevelopment），所以这里要填。
+	cfg := &Config{
+		App: App{AllowInsecureDevelopment: true, CaptchaThreshold: -1},
+		Jwt: Jwt{Key: "dev-only-key"},
+	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("explicit development override should pass: %v", err)
+	}
+}
+
+// 空 jwt.key 在开发模式下同样致命：lib/jwt.GenerateToken 会返回空串，
+// 登录接口照样回 code 0 success 但不带凭证，前端只会莫名其妙停在登录页。
+// 这是配置错误而不是安全强度问题，不能被 allow-insecure-development 放行。
+func TestEmptyJwtKeyIsRejectedEvenInDevelopment(t *testing.T) {
+	cfg := &Config{App: App{AllowInsecureDevelopment: true, CaptchaThreshold: -1}}
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("empty jwt.key must be rejected even in development mode")
+	}
+	if !strings.Contains(err.Error(), "jwt.key must not be empty") {
+		t.Fatalf("error should name the empty jwt.key: %v", err)
 	}
 }
 
@@ -52,6 +71,7 @@ func TestInvalidCaptchaAndBanCombinationIsRejected(t *testing.T) {
 func TestMfaRequiresEncryptionMaterialWhenEnabled(t *testing.T) {
 	cfg := &Config{
 		App: App{AllowInsecureDevelopment: true},
+		Jwt: Jwt{Key: "dev-only-key"},
 		Mfa: MfaConfig{Enabled: true},
 	}
 	// Development override intentionally bypasses production checks; MFA

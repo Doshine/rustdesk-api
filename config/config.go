@@ -149,6 +149,15 @@ func (c *Config) Validate() error {
 			errs = append(errs, err)
 		}
 	}
+	// jwt.key 为空时 lib/jwt.GenerateToken 直接返回空串，而登录流程不检查这个：
+	// 接口照样返回 code 0 success，token 字段却是空的，还会把空 token 写进
+	// user_tokens 表。前端存下空 token，下一次带凭证的请求被拒，用户被弹回登录页，
+	// 全程没有任何报错——服务端日志里只有一行 fmt.Println("jwt key is nil")。
+	// 这不是安全强度问题而是配置错误：功能直接坏掉，开发模式下同样致命，
+	// 所以这一条放在 AllowInsecureDevelopment 提前返回之前（同 MFA 自锁那条）。
+	if strings.TrimSpace(c.Jwt.Key) == "" {
+		errs = append(errs, errors.New("jwt.key must not be empty: an empty key makes token generation silently return an empty string, so login appears to succeed but issues no credential"))
+	}
 	if c.App.AllowInsecureDevelopment {
 		return errors.Join(errs...)
 	}
